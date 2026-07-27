@@ -1,0 +1,9 @@
+[project]
+name = "llnl_data_science_challenge_2026"
+version = "0.1.0"
+dependencies = [
+    "fastapi[standard]",
+]
+
+[tool.fastapi]
+entrypoint = "main:app"
