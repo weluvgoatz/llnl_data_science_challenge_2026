@@ -17,7 +17,7 @@ in [`analysis/defect_detection/PROCESS.md`](analysis/defect_detection/PROCESS.md
 .codex/agents/            Codex subagents (.toml, developer_instructions)
   segmentation_agent.toml       closed-loop Otsu segmentation of a .tif
   strut_error_detection_agent.toml  the "Strut Error Detection" node: detect +
-                                    classify every strut with evidence + confidence
+                                    classify every strut, then report
 .agents/skills/           Codex skills (SKILL.md + optional scripts/)
   threshold_optimizer/          pick + justify a segmentation threshold
   nde_report_expert/            NDE report from volume/mask/skeleton
