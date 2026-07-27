@@ -172,3 +172,22 @@ ehthumbs.db
 Thumbs.db
 
 result
+
+# ---- generated artifacts (regenerable outputs; ship the code, not the binaries) ----
+# large intermediate arrays
+*.npy
+*.npz
+9x9x9_slab.npy
+# 3D model exports
+analysis/defect_detection/MODEL_*
+analysis/defect_detection/MODEL_realistic_parts/
+analysis/defect_detection/MODEL_parts/
+# large rendered figures / interactive exports
+analysis/defect_detection/VIZ_*.png
+analysis/defect_detection/*_preview.png
+analysis/defect_detection/adjudication.png
+analysis/defect_detection/INTERACTIVE_*.html
+analysis/defect_detection/*.tif
+visualizations.html
+# python caches
+**/__pycache__/
