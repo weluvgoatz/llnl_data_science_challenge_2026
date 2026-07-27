@@ -30,13 +30,15 @@ from scipy import ndimage as ndi
 from scipy.spatial import cKDTree
 from skimage.morphology import skeletonize
 
+from config import MASK as CFG_MASK, RAW as CFG_RAW   # specimen defaults (env-overridable)
+
 CONN = np.ones((3, 3, 3), int)
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--mask", required=True, help="segmented binary .tif")
-    ap.add_argument("--raw", required=True, help="raw CT .tif (for density)")
+    ap.add_argument("--mask", default=str(CFG_MASK), help="segmented binary .tif")
+    ap.add_argument("--raw", default=str(CFG_RAW), help="raw CT .tif (for density)")
     ap.add_argument("--out", default=None)
     ap.add_argument("--d-merge", type=float, default=12.0,
                     help="merge node fragments closer than this (full-res vox)")

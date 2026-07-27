@@ -22,10 +22,7 @@ from pathlib import Path
 import numpy as np
 from scipy.spatial import cKDTree
 
-ROOT = Path(__file__).resolve().parents[2]
-ASBUILT = ROOT / "data/missing_struts/tif_stacks/210127_Brian_Tran_strut_lattices_0point5dash1 1 Slices_segmented_clean_asbuilt_graph.json"
-GT = ROOT / "data/missing_struts/registered_jsons/210127_Brian_Tran_strut_lattices_0point5dash1 1 Slices.json"
-OUT = ASBUILT.with_name(ASBUILT.stem + "_cleaned.json")
+from config import ROOT, ASBUILT_GRAPH as ASBUILT, DESIGN_JSON as GT, ASBUILT_GRAPH_CLEAN as OUT
 
 D_MERGE = 20.0     # collapse node fragments within this radius (struts are ~55 apart)
 SPUR_LEN = 30.0    # dangling edges shorter than this are spurs

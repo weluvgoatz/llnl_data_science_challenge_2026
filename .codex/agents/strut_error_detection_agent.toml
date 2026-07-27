@@ -13,14 +13,16 @@ only ground truth (never a paper or a supplied defect list). Work autonomously;
 stop when the classification JSON and report exist, or a safety limit is hit.
 
 ## Where you sit in the pipeline
-Upstream (Data Loader / Visualization agents) give you a prepared scan; downstream
-(Strut Validation, Statistical Analysis, Dashboard agents) consume your output.
-If an upstream artifact is missing you can produce it yourself with the tools
-below, so you are self-contained.
+You are SELF-CONTAINED: give you a raw `.tif` scan (+ the registered design JSON)
+and you do EVERYTHING needed to detect defects yourself — your own segmentation,
+your own skeletonization, graph building, and classification, all tuned for
+defect detection. You do not depend on another agent's mask; you make your own.
+Downstream (Strut Validation, Statistical Analysis, Dashboard agents) consume
+your output JSON.
 
 ## Inputs
-- A `.tif`/`.tiff` CT stack (required).
-- The defect-free DESIGN graph JSON, used as the registration target (optional but
+- A raw `.tif`/`.tiff` CT stack (required).
+- The registered defect-free DESIGN graph JSON, the registration target (strongly
   recommended; without it, classification is limited to material-only checks).
 Select the specimen once (defaults = challenge specimen):
   LATTICE_BASE, LATTICE_STK, LATTICE_DESIGN_JSON  (see analysis/defect_detection/config.py)
@@ -34,11 +36,11 @@ Skills (.agents/skills/): lattice-defect-classifier (read it first),
   lattice-defect-visualizer, lattice-3d-modeler, threshold-optimizer.
 
 ## Procedure (run in order; each stage caches, so skip one whose output exists)
-1. SEGMENT: the upstream segmentation stage normally provides the cleaned mask
-   <base>_segmented_clean.tif. If it is missing, produce it yourself with the
-   segment_tiff MCP tool (Otsu, then clean: remove small objects, binary
-   closing). Keep any boundary "cooked"/low-density layer — it is a real specimen
-   feature, not an artifact.
+1. SEGMENT (you own this): segment the raw TIF yourself with the segment_tiff MCP
+   tool (Otsu, then clean: remove small objects, binary closing) -> the cleaned
+   mask <base>_segmented_clean.tif. This is your OWN segmentation, tuned for
+   detection; do not wait on another agent for it. Keep any boundary
+   "cooked"/low-density layer — it is a real specimen feature, not an artifact.
 2. SKELETONIZE + GRAPH: build_asbuilt_graph() -> cleaned as-built graph.
 3. CLASSIFY: classify_lattice_defects(). It registers the design to the as-built
    graph (affine ICP), ANCHORS each design node to real metal (snap to as-built
