@@ -15,7 +15,6 @@ in [`analysis/defect_detection/PROCESS.md`](analysis/defect_detection/PROCESS.md
 ## Layout
 ```
 .codex/agents/            Codex subagents (.toml, developer_instructions)
-  segmentation_agent.toml       closed-loop Otsu segmentation of a .tif
   strut_error_detection_agent.toml  the "Strut Error Detection" node: detect +
                                     classify every strut, then report
 .agents/skills/           Codex skills (SKILL.md + optional scripts/)
@@ -37,7 +36,7 @@ data/                     sample CT / design graphs (Git LFS)
 
 ## Pipeline (tools compose in this order)
 ```
-segment_tiff / segmentation_agent      -> <base>_segmented_clean.tif
+segment_tiff (or upstream segmentation)-> <base>_segmented_clean.tif
 skeletonize                            -> <base>_...skelcoords.npz
 build_asbuilt_graph                    -> cleaned as-built graph JSON
 classify_lattice_defects   ---+        -> <base>_unified_defects_accurate.json

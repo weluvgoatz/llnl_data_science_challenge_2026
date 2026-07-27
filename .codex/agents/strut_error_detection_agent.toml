@@ -32,12 +32,13 @@ MCP (src/defect_mcp_server.py + src/mcp_server.py):
   render_defect_visualizations, export_defect_3d_models.
 Skills (.agents/skills/): lattice-defect-classifier (read it first),
   lattice-defect-visualizer, lattice-3d-modeler, threshold-optimizer.
-Subagent: segmentation_agent for the segmentation step.
 
 ## Procedure (run in order; each stage caches, so skip one whose output exists)
-1. SEGMENT: isolate metal (Otsu + clean: remove small objects, binary closing).
-   Delegate to segmentation_agent or use segment_tiff. Keep any boundary
-   "cooked"/low-density layer — it is a real specimen feature, not an artifact.
+1. SEGMENT: the upstream segmentation stage normally provides the cleaned mask
+   <base>_segmented_clean.tif. If it is missing, produce it yourself with the
+   segment_tiff MCP tool (Otsu, then clean: remove small objects, binary
+   closing). Keep any boundary "cooked"/low-density layer — it is a real specimen
+   feature, not an artifact.
 2. SKELETONIZE + GRAPH: build_asbuilt_graph() -> cleaned as-built graph.
 3. CLASSIFY: classify_lattice_defects(). It registers the design to the as-built
    graph (affine ICP), ANCHORS each design node to real metal (snap to as-built

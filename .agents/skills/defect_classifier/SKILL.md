@@ -22,9 +22,9 @@ export LATTICE_DESIGN_JSON="<repo-relative path to defect-free design graph JSON
 ## The pipeline (run in order; each stage caches its output)
 
 ### Step 1 — Segmentation
-Isolate metal from background. Use the `segmentation_agent` subagent, or the
-`segment_tiff` MCP tool with an Otsu threshold. Clean with small-object removal +
-binary closing. Output: `<base>_segmented_clean.tif`.
+Isolate metal from background. Normally the upstream segmentation stage provides
+this; if not, use the `segment_tiff` MCP tool with an Otsu threshold. Clean with
+small-object removal + binary closing. Output: `<base>_segmented_clean.tif`.
 Keep any boundary "cooked"/low-density layer — it is a REAL specimen feature, not
 an artifact.
 
