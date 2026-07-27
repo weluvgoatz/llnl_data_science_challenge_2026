@@ -35,8 +35,9 @@ export LATTICE_DESIGN_JSON="data/my_scan/design_graph.json"
 Defaults reproduce the challenge specimen, so with no env vars it "just runs".
 
 ## 3. Run it — pick one
-- **Easiest:** invoke the subagent `defect_detection_agent` — it does everything
-  (segment → skeletonize → graph → classify → report).
+- **Easiest:** invoke the subagent `strut_error_detection_agent` — this IS the
+  "Strut Error Detection" box; it does everything (segment → skeletonize → graph →
+  classify with evidence + confidence → report).
 - **Tool by tool** (MCP): `build_asbuilt_graph` → `classify_lattice_defects` →
   `detect_bent_struts` → `summarize_lattice_defects`.
 - **CLI:** run the scripts in `analysis/defect_detection/` in that order.
@@ -46,8 +47,11 @@ Defaults reproduce the challenge specimen, so with no env vars it "just runs".
 ```json
 {
   "struts": [
-    { "p0": [x, y, z], "p1": [x, y, z], "verdict": "present" },
-    { "p0": [x, y, z], "p1": [x, y, z], "verdict": "missing" }
+    { "p0": [x, y, z], "p1": [x, y, z], "verdict": "present",
+      "confidence": 0.94, "evidence": { "rule": "as-built strut exists ...",
+      "bow_um": 61, "bent_threshold_um": 212, "density": 51200, "thin_cutoff": 39055 } },
+    { "p0": [x, y, z], "p1": [x, y, z], "verdict": "missing",
+      "confidence": 0.71, "evidence": { "metal_fraction": 0.043, "missing_threshold": 0.15 } }
   ],
   "meta": {
     "counts": { "present": 17253, "missing": 410, "bent": 365,
@@ -59,6 +63,9 @@ Defaults reproduce the challenge specimen, so with no env vars it "just runs".
 ```
 - `p0`, `p1` = the strut's two joint positions in **[x, y, z] scan voxels**.
 - `verdict` = one of `present | missing | bent | thin | disconnected`.
+- `confidence` = 0–1 (how decisively the measurement cleared its threshold);
+  the Validation agent should review anything below ~0.2.
+- `evidence` = the raw measured value(s) and threshold behind the verdict.
 - Bend detail (bow in µm, tortuosity) is in `<base>_asbuilt_bent.json`.
 
 **Downstream agents (Statistical Analysis, Dashboard) only need this JSON.**

@@ -16,7 +16,8 @@ in [`analysis/defect_detection/PROCESS.md`](analysis/defect_detection/PROCESS.md
 ```
 .codex/agents/            Codex subagents (.toml, developer_instructions)
   segmentation_agent.toml       closed-loop Otsu segmentation of a .tif
-  defect_detection_agent.toml   full pipeline: segment->...->classify->report
+  strut_error_detection_agent.toml  the "Strut Error Detection" node: detect +
+                                    classify every strut with evidence + confidence
 .agents/skills/           Codex skills (SKILL.md + optional scripts/)
   threshold_optimizer/          pick + justify a segmentation threshold
   nde_report_expert/            NDE report from volume/mask/skeleton
@@ -77,8 +78,8 @@ args = ["src/mcp_server.py"]
 command = "python"
 args = ["src/defect_mcp_server.py"]
 ```
-Then invoke the `defect_detection_agent` subagent, or activate a skill and let the
-agent call the tools.
+Then invoke the `strut_error_detection_agent` subagent, or activate a skill and
+let the agent call the tools.
 
 ## Setup
 ```

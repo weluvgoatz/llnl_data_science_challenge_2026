@@ -248,42 +248,59 @@ def main():
                 n_absent += 1
     print(f"  anchors: {n_snap} snapped to as-built node, {n_metal} to local metal, {n_absent} absent")
 
-    # classify each designed strut
+    # classify each designed strut, RECORDING the driving evidence and a 0-1
+    # confidence (how decisively the measurement clears its threshold).
+    def clip01(x):
+        return float(np.clip(x, 0.0, 1.0))
+
     counts = defaultdict(int)
     out_struts = []
     for a, b in struts:
         na, nb = ab_node[a], ab_node[b]
         pa, pb = anchor[a], anchor[b]
         if np.isnan(pa).any() or np.isnan(pb).any():
-            v = "missing"                    # a node region has no metal at all
+            v = "missing"; confidence = 1.0
+            evidence = {"rule": "a joint sits on no metal", "metal_fraction": 0.0}
         elif na >= 0 and nb >= 0 and (min(na, nb), max(na, nb)) in edge_of:
             key = (min(na, nb), max(na, nb))
-            if bow[key] > BENT_THR:
-                v = "bent"
-            elif dens_of[key] < d_cut:
-                v = "thin"
+            bow_v = float(bow[key]); dens_v = float(dens_of[key])
+            evidence = {"rule": "as-built strut exists between the joints",
+                        "bow_um": round(bow_v * UM, 1), "bent_threshold_um": round(BENT_THR * UM, 1),
+                        "density": round(dens_v, 0), "thin_cutoff": round(d_cut, 0)}
+            if bow_v > BENT_THR:
+                v = "bent"; confidence = clip01((bow_v - BENT_THR) / BENT_THR)
+            elif dens_v < d_cut:
+                v = "thin"; confidence = clip01((d_cut - dens_v) / (3 * dsig + 1e-9))
             else:
                 v = "present"
+                confidence = clip01(min((BENT_THR - bow_v) / BENT_THR,
+                                        (dens_v - d_cut) / (dmed - d_cut + 1e-9)))
         else:
             # no as-built edge: sample real material between the two anchors
             ts = np.linspace(0, 1, 24)
             pts = np.round(pa[None] * (1 - ts[:, None]) + pb[None] * ts[:, None]).astype(int)
             pts = np.clip(pts, 0, shape - 1)
             hit = metal[pts[:, 0], pts[:, 1], pts[:, 2]][2:-2]
-            frac = hit.mean(); gap = longest_gap(hit) / len(hit)
+            frac = float(hit.mean()); gap = float(longest_gap(hit) / len(hit))
+            evidence = {"rule": "no as-built strut; sampled the material between joints",
+                        "metal_fraction": round(frac, 3), "missing_threshold": MISSING_FRAC,
+                        "longest_gap_fraction": round(gap, 3), "gap_threshold": GAP_FRAC}
             if frac < MISSING_FRAC:
-                v = "missing"
+                v = "missing"; confidence = clip01((MISSING_FRAC - frac) / MISSING_FRAC)
             elif gap >= GAP_FRAC:
-                v = "disconnected"
+                v = "disconnected"; confidence = clip01((gap - GAP_FRAC) / (1 - GAP_FRAC))
             else:
                 v = "present"
+                confidence = clip01(min((frac - MISSING_FRAC) / (1 - MISSING_FRAC),
+                                        (GAP_FRAC - gap) / GAP_FRAC))
         counts[v] += 1
         # export in [x,y,z] scan coords (reverse zyx)
         out_struts.append({"p0": [float(pa[2]), float(pa[1]), float(pa[0])] if not np.isnan(pa).any()
                            else [float(GPc[a][2]), float(GPc[a][1]), float(GPc[a][0])],
                            "p1": [float(pb[2]), float(pb[1]), float(pb[0])] if not np.isnan(pb).any()
                            else [float(GPc[b][2]), float(GPc[b][1]), float(GPc[b][0])],
-                           "verdict": v})
+                           "verdict": v, "confidence": round(confidence, 3),
+                           "evidence": evidence})
 
     n = len(struts)
     print("\n=== ACCURATE UNIFIED DEFECTS (anchored to real metal) ===")

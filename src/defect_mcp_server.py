@@ -75,13 +75,22 @@ def summarize_lattice_defects(classified_json_path: str) -> str:
     if n == 0:
         return "Error: no struts in file."
     counts = {c: 0 for c in CATS}
+    conf = {c: [] for c in CATS}
     for s in struts:
-        counts[s.get("verdict", "present")] = counts.get(s.get("verdict", "present"), 0) + 1
+        v = s.get("verdict", "present")
+        counts[v] = counts.get(v, 0) + 1
+        if "confidence" in s:
+            conf.setdefault(v, []).append(float(s["confidence"]))
     defective = n - counts["present"]
-    lines = [f"Total designed struts: {n}", ""]
+    has_conf = any(conf[c] for c in CATS)
+    header = f"  {'category':13s} {'count':>7s} {'share':>8s}" + ("   mean_conf" if has_conf else "")
+    lines = [f"Total designed struts: {n}", "", header]
     for c in CATS:
-        lines.append(f"  {c:13s}: {counts[c]:6d}   {100*counts[c]/n:6.2f}%")
-    lines += ["", f"  {'DEFECTIVE':13s}: {defective:6d}   {100*defective/n:6.2f}%"]
+        row = f"  {c:13s} {counts[c]:7d} {100*counts[c]/n:7.2f}%"
+        if has_conf:
+            row += f"   {(sum(conf[c])/len(conf[c])) if conf[c] else 0:.2f}"
+        lines.append(row)
+    lines += ["", f"  {'DEFECTIVE':13s} {defective:7d} {100*defective/n:7.2f}%"]
     return "\n".join(lines)
 
 
