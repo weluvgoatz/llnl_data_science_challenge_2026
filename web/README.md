@@ -1,3 +1,7 @@
+# Note on tools
+
+For tools implemented by Daniel within here, look at https://docs.google.com/document/d/16k8c3e-Ywrf_nNyZUjGjZT0ZnSHd2YaEr3NrTz2SjWw/edit?usp=sharing
+
 # Lattice Lens
 
 Lattice Lens is a four-step React and FastAPI application for uploading,
