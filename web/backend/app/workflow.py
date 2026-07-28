@@ -20,7 +20,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tifffile
 from scipy import ndimage as ndi
-from skimage.filters import threshold_otsu
 
 # web/analysis is a sibling of web/backend; make it importable to reuse the
 # repository's own tilt-estimation algorithm instead of duplicating it.
@@ -28,7 +27,12 @@ _ANALYSIS_ROOT = Path(__file__).resolve().parents[2]
 if str(_ANALYSIS_ROOT) not in sys.path:
     sys.path.insert(0, str(_ANALYSIS_ROOT))
 
+_MCP_SRC_ROOT = _ANALYSIS_ROOT / "src"
+if str(_MCP_SRC_ROOT) not in sys.path:
+    sys.path.insert(0, str(_MCP_SRC_ROOT))
+
 from analysis.tiff_tilt import _forward_rotation_matrix, estimate_tilt  # noqa: E402
+import mcp_server as _tiff_segmentation_tools  # noqa: E402
 
 from .store import job_dir, load_job, save_job
 
@@ -97,25 +101,11 @@ def render_tiff_slice(source: Path, destination: Path, index: int) -> None:
 
 
 # estimate_tilt() requires a binary mask (it fits lines through repeated
-# lattice edges); raw uploads are grayscale, so tilt detection runs against
-# an Otsu-thresholded copy while the correction itself is applied to the
-# original grayscale volume so the comparison still looks like CT data.
+# lattice edges). Produce that mask with the repository's segment_tiff MCP tool
+# before estimating tilt. Correction is still applied to the original grayscale
+# volume so the corrected upload retains its CT intensities.
 TILT_THRESHOLD_DEGREES = 0.1
 _TILT_SAMPLE_STRIDE = 40
-
-
-def _binarize_tiff(source: Path, destination: Path) -> None:
-    with tifffile.TiffFile(source) as image:
-        pages = image.pages
-        sample = np.stack(
-            [pages[index].asarray() for index in range(0, len(pages), _TILT_SAMPLE_STRIDE)]
-        )
-        threshold = threshold_otsu(sample)
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        with tifffile.TiffWriter(destination) as writer:
-            for page in pages:
-                frame = (page.asarray() >= threshold).astype(np.uint8)
-                writer.write(frame, contiguous=True)
 
 
 def _rotate_grayscale_tiff(
@@ -166,7 +156,13 @@ def check_and_correct_tilt(job_id: str, file_id: str) -> None:
 
     try:
         binary_path = root / "tilt" / f"{file_id}-binary.tif"
-        _binarize_tiff(source, binary_path)
+        segmentation_result = _tiff_segmentation_tools.segment_tiff(
+            str(source),
+            str(binary_path),
+            adaptive=True,
+        )
+        if segmentation_result.startswith("Error"):
+            raise RuntimeError(f"TIFF segmentation failed: {segmentation_result}")
         estimate = estimate_tilt(binary_path)
         binary_path.unlink(missing_ok=True)
 
@@ -201,31 +197,75 @@ def check_and_correct_tilt(job_id: str, file_id: str) -> None:
         save_job(job)
 
 
-def _run_external_harness(root: Path) -> bool:
+def _run_external_harness(root: Path, job: dict[str, Any]) -> bool:
     command = os.environ.get("CODEX_ANALYSIS_COMMAND", "").strip()
     if not command:
         return False
-    prompt = (
-        "Analyze the lattice files in uploads/. Use the configured MCP tools and "
-        "NDE report skill. Write PNG results to analysis/, a Markdown report to "
-        "report/report.md, and artifact-manifest.json at the job root."
-    )
-    completed = subprocess.run(
-        [part.format(job_dir=str(root), prompt=prompt) for part in shlex.split(command)],
-        cwd=root,
-        capture_output=True,
-        text=True,
-        timeout=int(os.environ.get("CODEX_ANALYSIS_TIMEOUT", "900")),
-        check=False,
-    )
-    (root / "codex.log").write_text(
-        completed.stdout + "\n--- stderr ---\n" + completed.stderr,
-        encoding="utf-8",
-    )
-    if completed.returncode:
-        raise RuntimeError(f"Codex harness exited with status {completed.returncode}")
-    return True
 
+    tiff_item = next(
+      (item for item in job["files"] if item["kind"] == "tiff"),
+      None,
+      )
+    design_item = next(
+      (item for item in job["files"] if item["kind"] == "json"),
+      None,
+      )
+    env = dict(os.environ)
+    prompt_parts = [
+          "Act as the orchestration agent for this analysis.",
+          "Analyze only the files belonging to the current job.",
+          "Do not use the challenge-specimen defaults.",
+          "Write PNG results to analysis/ and the Markdown report to report/report.md.",
+      ]
+
+    if tiff_item:
+      tiff_path = (root / tiff_item["path"]).resolve()
+      env["LATTICE_BASE"] = tiff_path.stem
+      env["LATTICE_STK"] = str(tiff_path.parent)
+
+      prompt_parts.append(
+        f"The CT input is {tiff_path}. "
+        f"Use LATTICE_BASE={tiff_path.stem!r} and "
+        f"LATTICE_STK={str(tiff_path.parent)!r}."
+      )
+    else:
+      prompt_parts.append("No TIFF input was uploaded.")
+
+    if design_item:
+      design_path = (root / design_item["path"]).resolve()
+      env["LATTICE_DESIGN_JSON"] = str(design_path)
+      prompt_parts.append(
+        f"The registered design JSON is {design_path}. "
+        "Use LATTICE_DESIGN_JSON for this file."
+      )
+    else:
+      prompt_parts.append("No design JSON was uploaded.")
+
+    prompt = " ".join(prompt_parts)
+
+    completed = subprocess.run(
+      [
+        part.format(job_dir=str(root), prompt=prompt)
+        for part in shlex.split(command)
+      ],
+      cwd=root,
+      env=env,
+      capture_output=True,
+      text=True,
+      timeout=int(os.environ.get("CODEX_ANALYSIS_TIMEOUT", "900")),
+      check=False,
+    )
+
+    (root / "codex.log").write_text(
+      completed.stdout + "\n--- stderr ---\n" + completed.stderr,
+      encoding="utf-8",
+    )
+
+    if completed.returncode:
+      raise RuntimeError(
+        f"Codex harness exited with status {completed.returncode}"
+      )
+    return True
 
 def _discover_outputs(root: Path) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
     artifacts = []
@@ -293,7 +333,6 @@ def _run_builtin(root: Path, job: dict[str, Any]) -> None:
     report_path = root / "report" / "report.md"
     report_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
-
 def run_analysis(job_id: str) -> None:
     job = load_job(job_id)
     if job["state"] not in {"intake_ready", "analyzing", "failed"}:
@@ -303,7 +342,7 @@ def run_analysis(job_id: str) -> None:
     save_job(job)
     root = job_dir(job_id)
     try:
-        external = _run_external_harness(root)
+        external = _run_external_harness(root, job)
         if not external:
             _run_builtin(root, job)
         artifacts, report = _discover_outputs(root)
