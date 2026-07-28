@@ -49,6 +49,9 @@ METAL_R = 11                           # else search this-radius ball for metal
 K_OUT = 3.0
 MISSING_FRAC = 0.15
 GAP_FRAC = 0.25
+DISK_R = 4.0                           # perpendicular search radius when tracking a strut
+MISSING_GAP = 0.50                     # empty over >= half the span -> nothing is there
+DISCONNECT_GAP_UM = 424.0              # a break >= one strut diameter is a real break
 
 
 def longest_gap(hit):
@@ -56,6 +59,48 @@ def longest_gap(hit):
     for h in hit:
         cur = 0 if h else cur + 1; best = max(best, cur)
     return best
+
+
+def _perp_axes(u):
+    t = np.array([1., 0, 0]) if abs(u[0]) < 0.9 else np.array([0., 1, 0])
+    e1 = np.cross(u, t); e1 /= np.linalg.norm(e1) + 1e-9
+    return e1, np.cross(u, e1)
+
+
+_DISK = None
+
+
+def _disk_offsets():
+    """integer (a,b) offsets filling a radius-DISK_R disk, nearest-first."""
+    global _DISK
+    if _DISK is None:
+        r = int(np.ceil(DISK_R))
+        pts = [(a, b) for a in range(-r, r + 1) for b in range(-r, r + 1)
+               if a * a + b * b <= DISK_R * DISK_R]
+        pts.sort(key=lambda ab: ab[0] ** 2 + ab[1] ** 2)
+        _DISK = pts
+    return _DISK
+
+
+def disk_profile(pa, pb, metal, shape, K=60):
+    """Is there metal in the plane PERPENDICULAR to the strut, at each step along it?
+
+    Sampling the bare centre line is wrong: a real strut frequently sits a few
+    voxels off the registered line, and the line then reads empty even though the
+    strut is intact.  Searching a perpendicular disk follows the strut without
+    smearing along its axis (a 3-D box would bridge genuine breaks).
+    """
+    u = pb - pa; u = u / (np.linalg.norm(u) + 1e-9)
+    e1, e2 = _perp_axes(u)
+    hits = np.zeros(K, bool)
+    for i, t in enumerate(np.linspace(0, 1, K)):
+        c = pa * (1 - t) + pb * t
+        for a, b in _disk_offsets():
+            q = np.round(c + a * e1 + b * e2).astype(int)
+            if np.all(q >= 0) and np.all(q < shape) and metal[q[0], q[1], q[2]]:
+                hits[i] = True
+                break
+    return hits
 
 
 def build_asbuilt_graph(mask):
@@ -251,6 +296,7 @@ def main():
     # classify each designed strut
     counts = defaultdict(int)
     out_struts = []
+
     for a, b in struts:
         na, nb = ab_node[a], ab_node[b]
         pa, pb = anchor[a], anchor[b]
@@ -265,16 +311,17 @@ def main():
             else:
                 v = "present"
         else:
-            # no as-built edge: sample real material between the two anchors
-            ts = np.linspace(0, 1, 24)
-            pts = np.round(pa[None] * (1 - ts[:, None]) + pb[None] * ts[:, None]).astype(int)
-            pts = np.clip(pts, 0, shape - 1)
-            hit = metal[pts[:, 0], pts[:, 1], pts[:, 2]][2:-2]
-            frac = hit.mean(); gap = longest_gap(hit) / len(hit)
-            if frac < MISSING_FRAC:
-                v = "missing"
-            elif gap >= GAP_FRAC:
-                v = "disconnected"
+            # No as-built edge: follow the strut with a perpendicular disk and judge
+            # it by the size of the largest BREAK.  Measuring the break directly
+            # needs no node-blob correction - an empty strut leaves a gap spanning
+            # nearly the whole span, while its two end blobs stay at the ends.
+            hit = disk_profile(pa, pb, metal, shape)
+            gap = longest_gap(hit) / len(hit)                 # fraction of the span
+            gap_um = gap * float(np.linalg.norm(pb - pa)) * UM
+            if gap >= MISSING_GAP:
+                v = "missing"           # empty over half the span or more
+            elif gap_um >= DISCONNECT_GAP_UM:
+                v = "disconnected"      # a real break of >= one strut diameter
             else:
                 v = "present"
         counts[v] += 1
