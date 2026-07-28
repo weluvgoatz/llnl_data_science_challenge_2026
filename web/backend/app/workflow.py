@@ -327,12 +327,20 @@ def _run_external_harness(root: Path, job: dict[str, Any]) -> bool:
       None,
       )
     env = dict(os.environ)
+
+    # start with very base level prompts
+
     prompt_parts = [
           "Act as the orchestration agent for this analysis.",
           "Analyze only the files belonging to the current job.",
           "Do not use the challenge-specimen defaults.",
           "Write PNG results to analysis/ and the Markdown report to report/report.md.",
       ]
+
+    # add specific calls to specific subagents/tools
+
+    specific_prompts = "Spawn the strut_error_detection_agent in order to perform specific analysis. Stop yourself when that process is complete."
+    prompt_parts.append(specific_prompts)
 
     if tiff_item:
       tiff_path = (root / tiff_item["path"]).resolve()
