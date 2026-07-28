@@ -41,7 +41,8 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-ROOT = Path(__file__).resolve().parents[2]
+from config import ROOT, RAW as CFG_RAW   # specimen defaults (env-overridable)
+
 OUT = ROOT / "analysis/defect_detection"
 DS = 4  # analysis downsample factor
 
@@ -165,6 +166,12 @@ def classify_struts(struts, metal, edt, mask, grid_to_vox, K=24):
       - present:      continuous and full thickness
     """
     shape = np.array(mask.shape)
+    # THICKNESS is sampled in a small TUBE around the ideal line (max-filter), so
+    # a present strut that bows or sits slightly off-grid still shows its true
+    # thickness and is not mislabelled "thin". METAL PRESENCE (for gaps/missing)
+    # stays on the exact line — a genuinely missing strut has no metal there, and
+    # a tube would wrongly bridge the gap.
+    edt_t = ndi.maximum_filter(edt, size=3)
     raw = []
     for n, m in struts:
         p0, p1 = grid_to_vox(n), grid_to_vox(m)
@@ -172,7 +179,7 @@ def classify_struts(struts, metal, edt, mask, grid_to_vox, K=24):
         pts = np.round(p0[None] * (1 - ts[:, None]) + p1[None] * ts[:, None]).astype(int)
         pts = np.clip(pts, 0, shape - 1)
         hit = metal[pts[:, 0], pts[:, 1], pts[:, 2]]
-        thick = edt[pts[:, 0], pts[:, 1], pts[:, 2]]
+        thick = edt_t[pts[:, 0], pts[:, 1], pts[:, 2]]
         mid_hit = hit[2:-2]
         mid_thick = thick[2:-2]
         n_mid = max(len(mid_hit), 1)
@@ -190,7 +197,7 @@ def classify_struts(struts, metal, edt, mask, grid_to_vox, K=24):
     for n, m, mid, gap_frac, frac, thick in raw:
         if gap_frac >= 0.6:
             verdict = "missing"
-        elif gap_frac >= 0.15:          # a real contiguous break, not just faint
+        elif gap_frac >= 0.25:          # a real contiguous break (>=1/4 of strut)
             verdict = "disconnected"
         elif thick < 0.6 * typical:      # continuous but under-thickness
             verdict = "thin"
@@ -219,7 +226,8 @@ def main():
     global TIF, JSONF, OUT
     parser = argparse.ArgumentParser(
         description="Reference-free defect detection: drop in a CT .tif, get the defects.")
-    parser.add_argument("--tif", required=True, help="Path to the CT .tif stack (the printed part).")
+    parser.add_argument("--tif", default=str(CFG_RAW),
+                        help="Path to the CT .tif stack (defaults to the config specimen).")
     parser.add_argument("--reference", default=None,
                         help="OPTIONAL registered .json blueprint - used ONLY to validate "
                              "the result. Detection never needs it.")
