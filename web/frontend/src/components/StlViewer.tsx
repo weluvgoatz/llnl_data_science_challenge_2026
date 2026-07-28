@@ -32,7 +32,7 @@ export function StlViewer({ url }: { url: string }) {
     const resize = () => {
       const width = node.clientWidth;
       const height = Math.max(node.clientHeight, 360);
-      renderer.setSize(width, height, false);
+      renderer.setSize(width, height);
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
     };

@@ -18,6 +18,7 @@ function normalizeJob(job: Job): Job {
       ...file,
       contentUrl: absoluteUrl(file.contentUrl)!,
       sliceUrl: absoluteUrl(file.sliceUrl),
+      correctedSliceUrl: file.correctedSliceUrl ? absoluteUrl(file.correctedSliceUrl) : file.correctedSliceUrl,
     })),
     artifacts: job.artifacts.map((artifact) => ({
       ...artifact,
@@ -30,6 +31,9 @@ function normalizeJob(job: Job): Job {
           previewUrl: absoluteUrl(job.report.previewUrl)!,
         }
       : null,
+    defects: job.defects
+      ? { ...job.defects, dataUrl: job.defects.dataUrl ? absoluteUrl(job.defects.dataUrl) : job.defects.dataUrl }
+      : job.defects,
   };
 }
 

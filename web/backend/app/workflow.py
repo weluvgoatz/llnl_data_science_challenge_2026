@@ -5,6 +5,7 @@ import os
 import shlex
 import struct
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +19,16 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import tifffile
+from scipy import ndimage as ndi
+from skimage.filters import threshold_otsu
+
+# web/analysis is a sibling of web/backend; make it importable to reuse the
+# repository's own tilt-estimation algorithm instead of duplicating it.
+_ANALYSIS_ROOT = Path(__file__).resolve().parents[2]
+if str(_ANALYSIS_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ANALYSIS_ROOT))
+
+from analysis.tiff_tilt import _forward_rotation_matrix, estimate_tilt  # noqa: E402
 
 from .store import job_dir, load_job, save_job
 
@@ -83,6 +94,111 @@ def render_tiff_slice(source: Path, destination: Path, index: int) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(destination, facecolor="#f4f3ef")
     plt.close(fig)
+
+
+# estimate_tilt() requires a binary mask (it fits lines through repeated
+# lattice edges); raw uploads are grayscale, so tilt detection runs against
+# an Otsu-thresholded copy while the correction itself is applied to the
+# original grayscale volume so the comparison still looks like CT data.
+TILT_THRESHOLD_DEGREES = 0.1
+_TILT_SAMPLE_STRIDE = 40
+
+
+def _binarize_tiff(source: Path, destination: Path) -> None:
+    with tifffile.TiffFile(source) as image:
+        pages = image.pages
+        sample = np.stack(
+            [pages[index].asarray() for index in range(0, len(pages), _TILT_SAMPLE_STRIDE)]
+        )
+        threshold = threshold_otsu(sample)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        with tifffile.TiffWriter(destination) as writer:
+            for page in pages:
+                frame = (page.asarray() >= threshold).astype(np.uint8)
+                writer.write(frame, contiguous=True)
+
+
+def _rotate_grayscale_tiff(
+    source: Path,
+    destination: Path,
+    zy_angle_degrees: float,
+    zx_angle_degrees: float,
+) -> None:
+    with tifffile.TiffFile(source) as image:
+        shape = (len(image.pages),) + image.pages[0].shape
+        dtype = image.pages[0].asarray().dtype
+        volume = np.empty(shape, dtype=dtype)
+        for index, page in enumerate(image.pages):
+            volume[index] = page.asarray()
+
+    # Voxel spacing is assumed isotropic: uploads carry no physical
+    # calibration, so the scale terms in the general tilt-tool formula
+    # reduce to the identity and can be skipped here.
+    rotation = _forward_rotation_matrix(zy_angle_degrees, zx_angle_degrees)
+    inverse = np.linalg.inv(rotation)
+    center = (np.asarray(shape, dtype=float) - 1.0) / 2.0
+    offset = center - inverse @ center
+    background = int(np.percentile(volume[::_TILT_SAMPLE_STRIDE], 1))
+    corrected = ndi.affine_transform(
+        volume,
+        inverse,
+        offset=offset,
+        output_shape=shape,
+        order=1,
+        mode="constant",
+        cval=background,
+        prefilter=False,
+    )
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    tifffile.imwrite(destination, corrected, photometric="minisblack")
+
+
+def check_and_correct_tilt(job_id: str, file_id: str) -> None:
+    job = load_job(job_id)
+    item = next((entry for entry in job["files"] if entry["id"] == file_id), None)
+    if not item or item["kind"] != "tiff":
+        return
+    root = job_dir(job_id)
+    source = root / item["path"]
+    item["tiltStatus"] = "checking"
+    item["tiltError"] = None
+    save_job(job)
+
+    try:
+        binary_path = root / "tilt" / f"{file_id}-binary.tif"
+        _binarize_tiff(source, binary_path)
+        estimate = estimate_tilt(binary_path)
+        binary_path.unlink(missing_ok=True)
+
+        job = load_job(job_id)
+        item = next(entry for entry in job["files"] if entry["id"] == file_id)
+        item["tiltZY"] = estimate.zy.angle_degrees
+        item["tiltZX"] = estimate.zx.angle_degrees
+
+        if (
+            abs(estimate.zy.angle_degrees) <= TILT_THRESHOLD_DEGREES
+            and abs(estimate.zx.angle_degrees) <= TILT_THRESHOLD_DEGREES
+        ):
+            item["tiltStatus"] = "not_tilted"
+            save_job(job)
+            return
+
+        corrected_relative = f"tilt/{file_id}-corrected.tif"
+        _rotate_grayscale_tiff(
+            source,
+            root / corrected_relative,
+            estimate.zy.angle_degrees,
+            estimate.zx.angle_degrees,
+        )
+        item["correctedPath"] = corrected_relative
+        item["tiltStatus"] = "corrected"
+        save_job(job)
+    except Exception as exc:
+        job = load_job(job_id)
+        item = next(entry for entry in job["files"] if entry["id"] == file_id)
+        item["tiltStatus"] = "failed"
+        item["tiltError"] = str(exc)
+        save_job(job)
 
 
 def _run_external_harness(root: Path) -> bool:
@@ -193,6 +309,18 @@ def run_analysis(job_id: str) -> None:
         artifacts, report = _discover_outputs(root)
         if external and not report:
             raise RuntimeError("Codex completed without creating report/report.md")
+
+        tiff_item = next((entry for entry in job["files"] if entry["kind"] == "tiff"), None)
+        design_item = next((entry for entry in job["files"] if entry["kind"] == "json"), None)
+        if tiff_item and design_item:
+            from .defect_detection import run_strut_defect_detection
+
+            run_strut_defect_detection(
+                job_id,
+                tiff_item["path"],
+                str((root / design_item["path"]).resolve()),
+            )
+
         job = load_job(job_id)
         job["artifacts"] = artifacts
         job["report"] = report

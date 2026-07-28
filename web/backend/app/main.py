@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, StreamingResponse
 
 from .store import create_job, job_dir, load_job, safe_child, save_job
-from .workflow import inspect_upload, render_tiff_slice, run_analysis
+from .workflow import check_and_correct_tilt, inspect_upload, render_tiff_slice, run_analysis
 
 
 app = FastAPI(title="Lattice Lens API", version="0.1.0")
@@ -53,6 +53,11 @@ def public_job(job: dict) -> dict:
                 if item["kind"] == "tiff"
                 else None
             ),
+            "correctedSliceUrl": (
+                f"/api/jobs/{job_id}/files/{item['id']}/corrected-slice"
+                if item.get("tiltStatus") == "corrected"
+                else None
+            ),
         }
         for item in job["files"]
     ]
@@ -65,6 +70,12 @@ def public_job(job: dict) -> dict:
             **job["report"],
             "downloadUrl": f"/api/jobs/{job_id}/report?download=true",
             "previewUrl": f"/api/jobs/{job_id}/report",
+        }
+    defects = job.get("defects")
+    if defects:
+        result["defects"] = {
+            **defects,
+            "dataUrl": f"/api/jobs/{job_id}/defects" if defects.get("status") == "complete" else None,
         }
     return result
 
@@ -133,6 +144,8 @@ async def upload_files(job_id: str, files: list[UploadFile] = File(...)) -> dict
                 "path": str(destination.relative_to(root)),
                 **metadata,
             }
+            if record["kind"] == "tiff":
+                record["tiltStatus"] = "pending"
             staged.append((destination, record))
     except Exception as exc:
         for path in destinations:
@@ -143,6 +156,13 @@ async def upload_files(job_id: str, files: list[UploadFile] = File(...)) -> dict
     job["state"] = "intake_ready"
     job["error"] = None
     save_job(job)
+    for _, record in staged:
+        if record["kind"] == "tiff":
+            threading.Thread(
+                target=check_and_correct_tilt,
+                args=(job_id, record["id"]),
+                daemon=True,
+            ).start()
     return public_job(job)
 
 
@@ -174,6 +194,20 @@ async def get_slice(job_id: str, file_id: str, index: int = 0) -> StreamingRespo
     return stream_file(preview, "image/png")
 
 
+@app.get("/api/jobs/{job_id}/files/{file_id}/corrected-slice")
+async def get_corrected_slice(job_id: str, file_id: str, index: int = 0) -> StreamingResponse:
+    job = get_job_or_404(job_id)
+    item = next((entry for entry in job["files"] if entry["id"] == file_id), None)
+    if not item or item.get("tiltStatus") != "corrected" or not item.get("correctedPath"):
+        raise HTTPException(404, "Tilt-corrected TIFF not available")
+    if index < 0 or index >= item["pageCount"]:
+        raise HTTPException(400, "Slice index is out of range")
+    preview = job_dir(job_id) / "previews" / f"{file_id}-corrected-{index}.png"
+    if not preview.is_file():
+        render_tiff_slice(safe_child(job_id, item["correctedPath"]), preview, index)
+    return stream_file(preview, "image/png")
+
+
 @app.post("/api/jobs/{job_id}/analysis", status_code=202)
 async def analyze(job_id: str) -> dict:
     job = get_job_or_404(job_id)
@@ -197,6 +231,15 @@ async def artifact(job_id: str, artifact_id: str) -> StreamingResponse:
         item["mediaType"],
         item["name"],
     )
+
+
+@app.get("/api/jobs/{job_id}/defects")
+async def get_defects(job_id: str) -> StreamingResponse:
+    job = get_job_or_404(job_id)
+    defects = job.get("defects")
+    if not defects or defects.get("status") != "complete" or not defects.get("path"):
+        raise HTTPException(404, "Defect classification not available")
+    return stream_file(safe_child(job_id, defects["path"]), "application/json")
 
 
 @app.get("/api/jobs/{job_id}/report")

@@ -7,17 +7,32 @@ import {
   FileArchive,
   FileJson,
   FileText,
-  Images,
   LoaderCircle,
+  Maximize2,
   Microscope,
   Play,
+  RotateCcw,
+  TriangleAlert,
   UploadCloud,
   X,
 } from "lucide-react";
 import { DragEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "./api";
 import { StlViewer } from "./components/StlViewer";
-import type { Artifact, InputFile, Job } from "./types";
+import { DefectViewer } from "./components/DefectViewer";
+import { ZoomableImage } from "./components/ZoomableImage";
+import { VERDICT_COLORS, VERDICT_DESCRIPTIONS, VERDICT_LABELS, VERDICT_ORDER } from "./defects";
+import type { DefectClassification, DefectStage, InputFile, Job, StrutVerdict } from "./types";
+
+const DEFECT_STAGE_LABELS: Record<DefectStage, string> = {
+  segmenting: "segmenting the scan",
+  cleaning: "cleaning the segmentation",
+  skeletonizing: "skeletonizing the lattice",
+  building_graph: "building the as-built graph",
+  classifying: "classifying every strut",
+  bend_detail: "measuring strut bow",
+  complete: "finishing up",
+};
 
 const steps = [
   { slug: "upload", label: "Upload", note: "Input data" },
@@ -151,33 +166,155 @@ function UploadPage({
   );
 }
 
+function TiltBanner({ file }: { file: InputFile }) {
+  switch (file.tiltStatus) {
+    case "pending":
+    case "checking":
+      return (
+        <div className="tilt-banner checking">
+          <LoaderCircle className="spin" size={14} /> Checking slices for tilt…
+        </div>
+      );
+    case "not_tilted":
+      return (
+        <div className="tilt-banner ok">
+          <Check size={14} /> No meaningful tilt detected.
+        </div>
+      );
+    case "corrected":
+      return (
+        <div className="tilt-banner corrected">
+          <RotateCcw size={14} />
+          Tilt detected (Z-Y {file.tiltZY?.toFixed(2)}°, Z-X {file.tiltZX?.toFixed(2)}°) — corrected copy shown below.
+        </div>
+      );
+    case "failed":
+      return (
+        <div className="tilt-banner failed">
+          <TriangleAlert size={14} /> Tilt check failed{file.tiltError ? `: ${file.tiltError}` : "."}
+        </div>
+      );
+    default:
+      return null;
+  }
+}
+
 function TiffViewer({ file }: { file: InputFile }) {
   const [index, setIndex] = useState(Math.floor((file.pageCount || 1) / 2));
+  const [focused, setFocused] = useState<"original" | "corrected" | null>(null);
   const max = Math.max((file.pageCount || 1) - 1, 0);
+  const originalUrl = `${file.sliceUrl}?index=${index}`;
+  const correctedUrl = file.correctedSliceUrl ? `${file.correctedSliceUrl}?index=${index}` : null;
+  const caption = `Slice ${index + 1} of ${max + 1}`;
+  const comparing = file.tiltStatus === "corrected" && correctedUrl;
+  const focusedUrl = focused === "corrected" ? correctedUrl : originalUrl;
+
   return (
     <div className="tiff-viewer">
-      <div className="slice-frame">
-        <img src={`${file.sliceUrl}?index=${index}`} alt={`Slice ${index} of ${file.name}`} />
-      </div>
+      <TiltBanner file={file} />
+      {comparing ? (
+        <div className="slice-compare">
+          <div className="slice-pane">
+            <span className="slice-pane-label">Original</span>
+            <button
+              className="slice-frame"
+              onClick={() => setFocused("original")}
+              aria-label={`Enlarge original ${caption}`}
+            >
+              <img src={originalUrl} alt={`Original ${caption}`} />
+            </button>
+          </div>
+          <div className="slice-pane">
+            <span className="slice-pane-label">Tilt-fixed</span>
+            <button
+              className="slice-frame"
+              onClick={() => setFocused("corrected")}
+              aria-label={`Enlarge tilt-fixed ${caption}`}
+            >
+              <img src={correctedUrl} alt={`Tilt-fixed ${caption}`} />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button className="slice-frame" onClick={() => setFocused("original")} aria-label={`Enlarge ${caption}`}>
+          <img src={originalUrl} alt={caption} />
+          <span className="viewer-hint"><Maximize2 size={13} /> Click to see the full frame</span>
+        </button>
+      )}
       <div className="slice-control">
         <label>Slice <strong>{index + 1}</strong> of {max + 1}</label>
         <input type="range" min="0" max={max} value={index} onChange={(e) => setIndex(Number(e.target.value))} />
       </div>
+      {focused && focusedUrl && (
+        <div className="lightbox" role="dialog" onClick={() => setFocused(null)}>
+          <button aria-label="Close image"><X /></button>
+          <img src={focusedUrl} alt={caption} />
+          <strong>{focused === "corrected" ? "Tilt-fixed — " : comparing ? "Original — " : ""}{caption}</strong>
+        </div>
+      )}
     </div>
+  );
+}
+
+function TiffCompareSection({ file }: { file: InputFile }) {
+  const [index, setIndex] = useState(Math.floor((file.pageCount || 1) / 2));
+  const max = Math.max((file.pageCount || 1) - 1, 0);
+  const originalUrl = `${file.sliceUrl}?index=${index}`;
+  const correctedUrl = file.correctedSliceUrl ? `${file.correctedSliceUrl}?index=${index}` : null;
+
+  return (
+    <section className="tiff-compare">
+      <div className="page-heading">
+        <span className="eyebrow">Tilt inspection</span>
+        <h2>Original vs. tilt-corrected slices.</h2>
+        <p>Scroll or use the buttons to zoom, drag to pan once zoomed in, double-click to reset.</p>
+      </div>
+      <TiltBanner file={file} />
+      <div className="tiff-compare-grid">
+        <div className="tiff-compare-pane">
+          <span className="slice-pane-label">Original</span>
+          <ZoomableImage src={originalUrl} alt={`Original slice ${index + 1} of ${file.name}`} />
+        </div>
+        <div className="tiff-compare-pane">
+          <span className="slice-pane-label">Tilt-fixed</span>
+          {correctedUrl ? (
+            <ZoomableImage src={correctedUrl} alt={`Tilt-fixed slice ${index + 1} of ${file.name}`} />
+          ) : (
+            <div className="tiff-compare-empty">
+              {file.tiltStatus === "not_tilted"
+                ? "No meaningful tilt detected — the corrected slice would match the original."
+                : file.tiltStatus === "failed"
+                ? "Tilt check failed, so no corrected slice is available."
+                : "Checking for tilt…"}
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="slice-control">
+        <label>Slice <strong>{index + 1}</strong> of {max + 1}</label>
+        <input type="range" min="0" max={max} value={index} onChange={(event) => setIndex(Number(event.target.value))} />
+      </div>
+    </section>
   );
 }
 
 function InspectPage({
   job,
   onAnalyze,
+  onAddFiles,
+  addingFiles,
 }: {
   job: Job;
   onAnalyze: () => Promise<void>;
+  onAddFiles: (files: File[]) => Promise<void>;
+  addingFiles: boolean;
 }) {
   const visualFiles = job.files.filter((file) => file.kind !== "json");
   const [selectedId, setSelectedId] = useState(visualFiles[0]?.id || job.files[0]?.id);
   const selected = job.files.find((file) => file.id === selectedId) || job.files[0];
   const working = job.state === "analyzing";
+  const canAddFiles = job.state === "intake_ready" && !working;
+  const tiffFile = job.files.find((file) => file.kind === "tiff");
   return (
     <section className="page">
       <div className="page-heading split">
@@ -205,6 +342,23 @@ function InspectPage({
               <span><strong>{file.name}</strong><small>{file.summary}</small></span>
             </button>
           ))}
+          {canAddFiles && (
+            <label className={`rail-add ${addingFiles ? "disabled" : ""}`}>
+              <input
+                type="file"
+                multiple
+                accept=".json,.tif,.tiff,.stl"
+                disabled={addingFiles}
+                onChange={(event) => {
+                  const chosen = Array.from(event.target.files || []);
+                  event.target.value = "";
+                  if (chosen.length) onAddFiles(chosen);
+                }}
+              />
+              {addingFiles ? <LoaderCircle className="spin" size={16} /> : <UploadCloud size={16} />}
+              <span>{addingFiles ? "Uploading…" : "Add TIFF or JSON"}</span>
+            </label>
+          )}
         </aside>
         <div className="viewer-panel">
           <div className="viewer-title">
@@ -225,51 +379,107 @@ function InspectPage({
             <div className="analysis-overlay">
               <LoaderCircle className="spin" size={30} />
               <strong>Codex workflow in progress</strong>
-              <span>Preparing visual findings and the NDE report…</span>
+              <span>
+                {job.defects?.status === "running" && job.defects.stage
+                  ? `Detecting strut defects — ${DEFECT_STAGE_LABELS[job.defects.stage]}…`
+                  : "Preparing visual findings and the NDE report…"}
+              </span>
             </div>
           )}
         </div>
       </div>
+      {tiffFile && <TiffCompareSection file={tiffFile} />}
     </section>
   );
 }
 
-function AnalysisPage({ artifacts }: { artifacts: Artifact[] }) {
-  const [focused, setFocused] = useState<Artifact | null>(null);
+function DefectSection({ job }: { job: Job }) {
+  const [data, setData] = useState<DefectClassification | null>(null);
+  const [error, setError] = useState("");
+  const [visible, setVisible] = useState<Set<StrutVerdict>>(
+    () => new Set(VERDICT_ORDER.filter((verdict) => verdict !== "present")),
+  );
+  const dataUrl = job.defects?.status === "complete" ? job.defects.dataUrl : null;
+
+  useEffect(() => {
+    if (!dataUrl) return;
+    setError("");
+    setData(null);
+    fetch(dataUrl)
+      .then((response) => {
+        if (!response.ok) throw new Error(`Request failed (${response.status})`);
+        return response.json();
+      })
+      .then(setData)
+      .catch(() => setError("The defect classification could not be loaded."));
+  }, [dataUrl]);
+
+  const toggle = (verdict: StrutVerdict) => {
+    setVisible((current) => {
+      const next = new Set(current);
+      if (next.has(verdict)) next.delete(verdict);
+      else next.add(verdict);
+      return next;
+    });
+  };
+
+  if (!job.defects) return null;
+
+  return (
+    <section className="defect-section">
+      <div className="page-heading">
+        <span className="eyebrow">Strut error detection</span>
+        <h1>Every designed strut, checked against the scan.</h1>
+        {data ? (
+          <p>
+            {(data.meta.n - (data.meta.counts.present || 0)).toLocaleString()} of{" "}
+            {data.meta.n.toLocaleString()} struts show a defect. Drag to rotate, scroll to zoom — click a
+            category below to show or hide it.
+          </p>
+        ) : (
+          <p>Loading the classification produced by the strut error detection pipeline…</p>
+        )}
+      </div>
+      {job.defects.status === "failed" && (
+        <div className="error-banner">{job.defects.error || "The defect-detection pipeline failed."}</div>
+      )}
+      {error && <div className="error-banner">{error}</div>}
+      {data && (
+        <>
+          <DefectViewer struts={data.struts} visibleVerdicts={visible} />
+          <div className="defect-gallery">
+            {VERDICT_ORDER.map((verdict) => {
+              const count = data.meta.counts[verdict] || 0;
+              const percent = data.meta.n ? ((100 * count) / data.meta.n).toFixed(2) : "0.00";
+              return (
+                <button
+                  key={verdict}
+                  className={`defect-card ${visible.has(verdict) ? "active" : ""}`}
+                  onClick={() => toggle(verdict)}
+                  aria-pressed={visible.has(verdict)}
+                >
+                  <span className="defect-swatch" style={{ background: VERDICT_COLORS[verdict] }} />
+                  <span className="defect-card-body">
+                    <strong>{VERDICT_LABELS[verdict]}</strong>
+                    <span className="defect-count">
+                      {count.toLocaleString()} <small>({percent}%)</small>
+                    </span>
+                    <p>{VERDICT_DESCRIPTIONS[verdict]}</p>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+function AnalysisPage({ job }: { job: Job }) {
   return (
     <section className="page">
-      <div className="page-heading split">
-        <div>
-          <span className="eyebrow success"><Check size={13} /> Analysis complete</span>
-          <h1>Visual findings.</h1>
-          <p>Review generated perspectives and download any image for closer inspection.</p>
-        </div>
-        <div className="finding-count"><Images size={20} /><strong>{artifacts.length}</strong> images</div>
-      </div>
-      {artifacts.length ? (
-        <div className="artifact-grid">
-          {artifacts.map((item) => (
-            <article className="artifact-card" key={item.id}>
-              <button className="artifact-image" onClick={() => setFocused(item)}>
-                <img src={item.downloadUrl} alt={item.caption} />
-              </button>
-              <div>
-                <span><strong>{item.caption}</strong><small>PNG analysis output</small></span>
-                <a className="icon-button" href={item.downloadUrl} download><Download size={17} /> Download</a>
-              </div>
-            </article>
-          ))}
-        </div>
-      ) : (
-        <div className="empty-state"><Images size={40} /><h2>No PNG outputs</h2><p>The run completed without visual artifacts.</p></div>
-      )}
-      {focused && (
-        <div className="lightbox" role="dialog" onClick={() => setFocused(null)}>
-          <button aria-label="Close image"><X /></button>
-          <img src={focused.downloadUrl} alt={focused.caption} />
-          <strong>{focused.caption}</strong>
-        </div>
-      )}
+      <DefectSection job={job} />
     </section>
   );
 }
@@ -336,22 +546,30 @@ export default function App() {
     };
   }, []);
 
+  // DEV MODE: "resume last job on reload" is temporarily disabled so every page
+  // load starts fresh. This block also purges any job id left over in
+  // localStorage from before this was disabled. To restore persistence, delete
+  // this effect and uncomment the block below it.
   useEffect(() => {
-    const id = pathParts[0] === "jobs" ? pathParts[1] : localStorage.getItem("lattice-job");
-    if (!id) return;
-    api.getJob(id)
-      .then((loaded) => {
-        setJob(loaded);
-        localStorage.setItem("lattice-job", loaded.id);
-        if (pathParts[0] !== "jobs") navigate(`/jobs/${loaded.id}/${steps[allowedStep(loaded)].slug}`, { replace: true });
-      })
-      .catch(() => {
-        localStorage.removeItem("lattice-job");
-        if (pathParts[0] === "jobs") navigate("/", { replace: true });
-      });
-    // Route identity is intentionally the refresh trigger.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathParts[1]]);
+    localStorage.removeItem("lattice-job");
+  }, []);
+
+  // useEffect(() => {
+  //   const id = pathParts[0] === "jobs" ? pathParts[1] : localStorage.getItem("lattice-job");
+  //   if (!id) return;
+  //   api.getJob(id)
+  //     .then((loaded) => {
+  //       setJob(loaded);
+  //       localStorage.setItem("lattice-job", loaded.id);
+  //       if (pathParts[0] !== "jobs") navigate(`/jobs/${loaded.id}/${steps[allowedStep(loaded)].slug}`, { replace: true });
+  //     })
+  //     .catch(() => {
+  //       localStorage.removeItem("lattice-job");
+  //       if (pathParts[0] === "jobs") navigate("/", { replace: true });
+  //     });
+  //   // Route identity is intentionally the refresh trigger.
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [pathParts[1]]);
 
   useEffect(() => {
     if (!job || job.state !== "analyzing") return;
@@ -362,6 +580,17 @@ export default function App() {
     }, 1200);
     return () => window.clearInterval(timer);
   }, [job, navigate]);
+
+  useEffect(() => {
+    const tiltPending = job?.files.some(
+      (file) => file.kind === "tiff" && (file.tiltStatus === "pending" || file.tiltStatus === "checking"),
+    );
+    if (!job || !tiltPending) return;
+    const timer = window.setInterval(async () => {
+      setJob(await api.getJob(job.id));
+    }, 1500);
+    return () => window.clearInterval(timer);
+  }, [job]);
 
   useEffect(() => {
     if (job && currentIndex > allowedStep(job)) {
@@ -378,7 +607,7 @@ export default function App() {
       const created = await api.createJob();
       const uploaded = await api.upload(created.id, files);
       setJob(uploaded);
-      localStorage.setItem("lattice-job", uploaded.id);
+      // localStorage.setItem("lattice-job", uploaded.id); // DEV MODE: see note above
       navigate(`/jobs/${uploaded.id}/inspect`);
     } catch (error) {
       setGlobalError(error instanceof Error ? error.message : "Upload failed");
@@ -393,6 +622,19 @@ export default function App() {
       setJob(await api.analyze(job.id));
     } catch (error) {
       setGlobalError(error instanceof Error ? error.message : "Analysis could not start");
+    }
+  };
+  const [addingFiles, setAddingFiles] = useState(false);
+  const addFiles = async (files: File[]) => {
+    if (!job || !files.length) return;
+    setGlobalError("");
+    setAddingFiles(true);
+    try {
+      setJob(await api.upload(job.id, files));
+    } catch (error) {
+      setGlobalError(error instanceof Error ? error.message : "Upload failed");
+    } finally {
+      setAddingFiles(false);
     }
   };
   const reset = () => {
@@ -436,8 +678,10 @@ export default function App() {
       <main>
         {globalError && <div className="global-error"><span>{globalError}</span><button onClick={() => setGlobalError("")}><X size={16} /></button></div>}
         {currentStep.slug === "upload" && <UploadPage onComplete={upload} busy={busy} />}
-        {currentStep.slug === "inspect" && job && <InspectPage job={job} onAnalyze={analyze} />}
-        {currentStep.slug === "analysis" && job && <AnalysisPage artifacts={job.artifacts} />}
+        {currentStep.slug === "inspect" && job && (
+          <InspectPage job={job} onAnalyze={analyze} onAddFiles={addFiles} addingFiles={addingFiles} />
+        )}
+        {currentStep.slug === "analysis" && job && <AnalysisPage job={job} />}
         {currentStep.slug === "report" && job && <ReportPage job={job} onReset={reset} />}
       </main>
       {job && currentStep.slug !== "upload" && (
