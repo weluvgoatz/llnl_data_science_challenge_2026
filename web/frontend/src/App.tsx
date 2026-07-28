@@ -178,14 +178,14 @@ function TiltBanner({ file }: { file: InputFile }) {
     case "not_tilted":
       return (
         <div className="tilt-banner ok">
-          <Check size={14} /> No meaningful tilt detected.
+          <Check size={14} /> No meaningful tilt detected — segmented copy shown below.
         </div>
       );
     case "corrected":
       return (
         <div className="tilt-banner corrected">
           <RotateCcw size={14} />
-          Tilt detected (Z-Y {file.tiltZY?.toFixed(2)}°, Z-X {file.tiltZX?.toFixed(2)}°) — corrected copy shown below.
+          Tilt detected (Z-Y {file.tiltZY?.toFixed(2)}°, Z-X {file.tiltZX?.toFixed(2)}°) — segmented and corrected copy shown below.
         </div>
       );
     case "failed":
@@ -206,7 +206,7 @@ function TiffViewer({ file }: { file: InputFile }) {
   const originalUrl = `${file.sliceUrl}?index=${index}`;
   const correctedUrl = file.correctedSliceUrl ? `${file.correctedSliceUrl}?index=${index}` : null;
   const caption = `Slice ${index + 1} of ${max + 1}`;
-  const comparing = file.tiltStatus === "corrected" && correctedUrl;
+  const comparing = Boolean(correctedUrl);
   const focusedUrl = focused === "corrected" ? correctedUrl : originalUrl;
 
   return (
@@ -225,13 +225,13 @@ function TiffViewer({ file }: { file: InputFile }) {
             </button>
           </div>
           <div className="slice-pane">
-            <span className="slice-pane-label">Tilt-fixed</span>
+            <span className="slice-pane-label">Segmented + tilt-fixed</span>
             <button
               className="slice-frame"
               onClick={() => setFocused("corrected")}
-              aria-label={`Enlarge tilt-fixed ${caption}`}
+              aria-label={`Enlarge segmented and tilt-fixed ${caption}`}
             >
-              <img src={correctedUrl} alt={`Tilt-fixed ${caption}`} />
+              <img src={correctedUrl!} alt={`Segmented and tilt-fixed ${caption}`} />
             </button>
           </div>
         </div>
@@ -249,7 +249,7 @@ function TiffViewer({ file }: { file: InputFile }) {
         <div className="lightbox" role="dialog" onClick={() => setFocused(null)}>
           <button aria-label="Close image"><X /></button>
           <img src={focusedUrl} alt={caption} />
-          <strong>{focused === "corrected" ? "Tilt-fixed — " : comparing ? "Original — " : ""}{caption}</strong>
+          <strong>{focused === "corrected" ? "Segmented + tilt-fixed — " : comparing ? "Original — " : ""}{caption}</strong>
         </div>
       )}
     </div>
@@ -266,7 +266,7 @@ function TiffCompareSection({ file }: { file: InputFile }) {
     <section className="tiff-compare">
       <div className="page-heading">
         <span className="eyebrow">Tilt inspection</span>
-        <h2>Original vs. tilt-corrected slices.</h2>
+        <h2>Original vs. segmented, tilt-corrected slices.</h2>
         <p>Scroll or use the buttons to zoom, drag to pan once zoomed in, double-click to reset.</p>
       </div>
       <TiltBanner file={file} />
@@ -276,13 +276,13 @@ function TiffCompareSection({ file }: { file: InputFile }) {
           <ZoomableImage src={originalUrl} alt={`Original slice ${index + 1} of ${file.name}`} />
         </div>
         <div className="tiff-compare-pane">
-          <span className="slice-pane-label">Tilt-fixed</span>
+          <span className="slice-pane-label">Segmented + tilt-fixed</span>
           {correctedUrl ? (
-            <ZoomableImage src={correctedUrl} alt={`Tilt-fixed slice ${index + 1} of ${file.name}`} />
+            <ZoomableImage src={correctedUrl} alt={`Segmented and tilt-fixed slice ${index + 1} of ${file.name}`} />
           ) : (
             <div className="tiff-compare-empty">
               {file.tiltStatus === "not_tilted"
-                ? "No meaningful tilt detected — the corrected slice would match the original."
+                ? "No meaningful tilt detected — preparing the segmented copy."
                 : file.tiltStatus === "failed"
                 ? "Tilt check failed, so no corrected slice is available."
                 : "Checking for tilt…"}

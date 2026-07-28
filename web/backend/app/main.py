@@ -55,7 +55,8 @@ def public_job(job: dict) -> dict:
             ),
             "correctedSliceUrl": (
                 f"/api/jobs/{job_id}/files/{item['id']}/corrected-slice"
-                if item.get("tiltStatus") == "corrected"
+                if item.get("tiltStatus") in {"corrected", "not_tilted"}
+                and item.get("correctedPath")
                 else None
             ),
         }
@@ -198,7 +199,11 @@ async def get_slice(job_id: str, file_id: str, index: int = 0) -> StreamingRespo
 async def get_corrected_slice(job_id: str, file_id: str, index: int = 0) -> StreamingResponse:
     job = get_job_or_404(job_id)
     item = next((entry for entry in job["files"] if entry["id"] == file_id), None)
-    if not item or item.get("tiltStatus") != "corrected" or not item.get("correctedPath"):
+    if (
+        not item
+        or item.get("tiltStatus") not in {"corrected", "not_tilted"}
+        or not item.get("correctedPath")
+    ):
         raise HTTPException(404, "Tilt-corrected TIFF not available")
     if index < 0 or index >= item["pageCount"]:
         raise HTTPException(400, "Slice index is out of range")

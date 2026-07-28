@@ -15,6 +15,7 @@ def anyio_backend():
 @pytest.mark.anyio
 async def test_upload_gating_and_analysis(tmp_path, monkeypatch):
     monkeypatch.setenv("LATTICE_JOB_ROOT", str(tmp_path))
+    monkeypatch.delenv("CODEX_ANALYSIS_COMMAND", raising=False)
     from app import store
 
     store.DATA_ROOT = tmp_path
@@ -48,6 +49,7 @@ async def test_upload_gating_and_analysis(tmp_path, monkeypatch):
 @pytest.mark.anyio
 async def test_tiff_slice_and_invalid_extension(tmp_path, monkeypatch):
     monkeypatch.setenv("LATTICE_JOB_ROOT", str(tmp_path))
+    monkeypatch.setenv("CODEX_TILT_COMMAND", "")
     from app import store
 
     store.DATA_ROOT = tmp_path
