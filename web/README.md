@@ -45,16 +45,26 @@ cannot run FastAPI, Codex, or MCP servers, so the backend must be hosted
 separately on a service that supports persistent Python processes and job
 storage.
 
-In the GitHub repository, add this Actions variable:
+The repository includes `render.yaml` for the existing free Render service.
+In Render, create or sync a Blueprint for this repository, confirm that it
+targets `llnl-dsc-api`, and deploy the latest `main`. The service uses:
 
 ```text
-VITE_API_BASE_URL=https://your-backend.example.com
+Build command: pip install -r web/backend/requirements.txt
+Start command: python -m uvicorn web.backend.app.main:app --host 0.0.0.0 --port $PORT
+Health check: /api/health
 ```
 
-Configure the backend to accept requests from the Pages origin:
+Confirm that this URL returns a JSON health response before deploying Pages:
 
-```bash
-export LATTICE_CORS_ORIGINS=https://weluvgoatz.github.io
+```text
+https://llnl-dsc-api.onrender.com/api/health
+```
+
+In the GitHub repository, add or update this Actions variable:
+
+```text
+VITE_API_BASE_URL=https://llnl-dsc-api.onrender.com
 ```
 
 Then choose **GitHub Actions** under **Settings → Pages → Build and
@@ -64,6 +74,14 @@ workflow. The frontend will be published at:
 ```text
 https://weluvgoatz.github.io/llnl_data_science_challenge_2026/
 ```
+
+The Render Blueprint intentionally describes a free demo deployment. It caps
+uploads and expanded TIFF volumes at 64 MiB because the free instance has only
+512 MiB RAM. It also uses ephemeral storage: every job and uploaded file is
+lost when Render sleeps, restarts, or redeploys. The frontend reports the cold
+start and storage behavior instead of claiming the service is ready while it
+is unavailable. Full challenge-sized scans require a paid, higher-memory
+service and persistent storage.
 
 ## Codex harness
 

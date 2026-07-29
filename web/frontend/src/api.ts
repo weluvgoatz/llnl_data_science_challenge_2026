@@ -1,4 +1,4 @@
-import type { Job } from "./types";
+import type { ApiHealth, Job } from "./types";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 
@@ -59,6 +59,22 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  health: async (): Promise<ApiHealth> => {
+    if (!API_BASE && import.meta.env.PROD) {
+      throw new Error("No backend API is configured.");
+    }
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 8_000);
+    try {
+      const response = await fetch(apiUrl("/api/health"), {
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error(`Health check failed (${response.status})`);
+      return await response.json();
+    } finally {
+      window.clearTimeout(timeout);
+    }
+  },
   createJob: () => request<Job>("/api/jobs", { method: "POST" }),
   getJob: (id: string) => request<Job>(`/api/jobs/${id}`),
   upload: async (id: string, files: File[]) => {

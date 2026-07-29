@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: llnl-dsc-api
+    runtime: python
+    plan: free
+    autoDeployTrigger: commit
+    buildCommand: pip install -r web/backend/requirements.txt
+    startCommand: python -m uvicorn web.backend.app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: LATTICE_CORS_ORIGINS
+        value: https://weluvgoatz.github.io
+      - key: LATTICE_JOB_ROOT
+        value: /tmp/lattice-jobs
+      - key: LATTICE_STORAGE_MODE
+        value: ephemeral
+      - key: LATTICE_MAX_UPLOAD_BYTES
+        value: "67108864"
+      - key: LATTICE_MAX_TIFF_EXPANDED_BYTES
+        value: "67108864"
+      - key: CODEX_TILT_COMMAND
+        value: ""
+      - key: CODEX_ANALYSIS_COMMAND
+        value: ""

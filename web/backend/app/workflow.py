@@ -48,11 +48,16 @@ def inspect_upload(path: Path) -> dict[str, Any]:
             if not image.pages:
                 raise ValueError("TIFF contains no pages")
             first = image.pages[0]
+            expanded_bytes = sum(
+                page.imagelength * page.imagewidth * page.dtype.itemsize
+                for page in image.pages
+            )
             return {
                 "kind": "tiff",
                 "pageCount": len(image.pages),
                 "width": first.imagewidth,
                 "height": first.imagelength,
+                "expandedBytes": expanded_bytes,
                 "summary": f"{len(image.pages)} slices · {first.imagewidth}×{first.imagelength}",
             }
     if suffix == ".stl":

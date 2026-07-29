@@ -22,7 +22,7 @@ import { StlViewer } from "./components/StlViewer";
 import { DefectViewer } from "./components/DefectViewer";
 import { ZoomableImage } from "./components/ZoomableImage";
 import { VERDICT_COLORS, VERDICT_DESCRIPTIONS, VERDICT_LABELS, VERDICT_ORDER } from "./defects";
-import type { DefectClassification, DefectStage, InputFile, Job, StrutVerdict } from "./types";
+import type { ApiHealth, DefectClassification, DefectStage, InputFile, Job, StrutVerdict } from "./types";
 
 const DEFECT_STAGE_LABELS: Record<DefectStage, string> = {
   segmenting: "segmenting the scan",
@@ -75,9 +75,15 @@ function MarkdownPreview({ url }: { url: string }) {
 function UploadPage({
   onComplete,
   busy,
+  backendStatus,
+  health,
+  onRetry,
 }: {
   onComplete: (files: File[]) => Promise<void>;
   busy: boolean;
+  backendStatus: "waking" | "ready" | "offline";
+  health: ApiHealth | null;
+  onRetry: () => void;
 }) {
   const [files, setFiles] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
@@ -89,6 +95,13 @@ function UploadPage({
     const invalid = incoming.find((file) => !supported.has(file.name.split(".").pop()?.toLowerCase() || ""));
     if (invalid) {
       setError(`${invalid.name} is not a supported JSON, TIFF, or STL file.`);
+      return;
+    }
+    const oversized = health && incoming.find((file) => file.size > health.maxUploadBytes);
+    if (oversized) {
+      setError(
+        `${oversized.name} exceeds this demo's ${formatBytes(health.maxUploadBytes)} upload limit.`,
+      );
       return;
     }
     setFiles((current) => {
@@ -109,6 +122,18 @@ function UploadPage({
         <h1>Bring your lattice into focus.</h1>
         <p>Upload one file or a matched set. We’ll validate the data before opening the workspace.</p>
       </div>
+      <div className={`service-banner ${backendStatus}`}>
+        {backendStatus === "ready" ? (
+          <><Check size={16} /> Analysis service ready. Jobs use temporary storage and disappear when the free service sleeps.</>
+        ) : backendStatus === "waking" ? (
+          <><LoaderCircle className="spin" size={16} /> Waking the free analysis service. This can take about a minute…</>
+        ) : (
+          <>
+            <TriangleAlert size={16} /> The analysis service did not respond.
+            <button type="button" onClick={onRetry}>Retry</button>
+          </>
+        )}
+      </div>
       <label
         className={`dropzone ${dragging ? "dragging" : ""}`}
         onDragOver={(event) => {
@@ -127,7 +152,10 @@ function UploadPage({
         <div className="upload-mark"><UploadCloud size={27} /></div>
         <h2>Drop lattice files here</h2>
         <p>or <span>browse your computer</span></p>
-        <small>JSON · TIFF stacks · STL meshes &nbsp;·&nbsp; 2 GB maximum per file</small>
+        <small>
+          JSON · TIFF stacks · STL meshes &nbsp;·&nbsp;{" "}
+          {health ? `${formatBytes(health.maxUploadBytes)} maximum per file` : "checking upload limit…"}
+        </small>
       </label>
       {error && <div className="error-banner">{error}</div>}
       {files.length > 0 && (
@@ -156,9 +184,19 @@ function UploadPage({
               </div>
             );
           })}
-          <button className="primary-button wide" disabled={busy} onClick={() => onComplete(files)}>
-            {busy ? <LoaderCircle className="spin" size={19} /> : <UploadCloud size={19} />}
-            {busy ? "Validating files…" : "Upload and open workspace"}
+          <button
+            className="primary-button wide"
+            disabled={busy || backendStatus !== "ready"}
+            onClick={() => onComplete(files)}
+          >
+            {busy || backendStatus === "waking" ? <LoaderCircle className="spin" size={19} /> : <UploadCloud size={19} />}
+            {busy
+              ? "Validating files…"
+              : backendStatus === "waking"
+                ? "Waiting for analysis service…"
+                : backendStatus === "offline"
+                  ? "Analysis service unavailable"
+                  : "Upload and open workspace"}
           </button>
         </div>
       )}
@@ -580,6 +618,9 @@ export default function App() {
   const [job, setJob] = useState<Job | null>(null);
   const [busy, setBusy] = useState(false);
   const [globalError, setGlobalError] = useState("");
+  const [backendStatus, setBackendStatus] = useState<"waking" | "ready" | "offline">("waking");
+  const [health, setHealth] = useState<ApiHealth | null>(null);
+  const [healthAttempt, setHealthAttempt] = useState(0);
   const pathParts = pathname.split("/").filter(Boolean);
   const pathStep = pathParts[2] as StepSlug | undefined;
   const currentIndex = Math.max(0, steps.findIndex((step) => step.slug === pathStep));
@@ -594,6 +635,33 @@ export default function App() {
       window.removeEventListener("hashchange", onPopState);
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setBackendStatus("waking");
+    setHealth(null);
+    const checkHealth = async () => {
+      for (let attempt = 0; attempt < 9 && !cancelled; attempt += 1) {
+        try {
+          const result = await api.health();
+          if (!cancelled) {
+            setHealth(result);
+            setBackendStatus("ready");
+          }
+          return;
+        } catch {
+          if (attempt < 8) {
+            await new Promise((resolve) => window.setTimeout(resolve, 3_000));
+          }
+        }
+      }
+      if (!cancelled) setBackendStatus("offline");
+    };
+    void checkHealth();
+    return () => {
+      cancelled = true;
+    };
+  }, [healthAttempt]);
 
   // DEV MODE: "resume last job on reload" is temporarily disabled so every page
   // load starts fresh. This block also purges any job id left over in
@@ -703,7 +771,14 @@ export default function App() {
           <span className="brand-mark"><span /><span /><span /><span /></span>
           <span><strong>Lattice</strong> Lens</span>
         </button>
-        <div className="status-chip"><span /> Agent workflow ready</div>
+        <div className={`status-chip ${backendStatus}`}>
+          <span />
+          {backendStatus === "ready"
+            ? "Analysis service ready"
+            : backendStatus === "waking"
+              ? "Waking analysis service"
+              : "Analysis service offline"}
+        </div>
       </header>
       <nav className="stepper" aria-label="Workflow progress">
         {steps.map((step, index) => {
@@ -726,7 +801,15 @@ export default function App() {
       </nav>
       <main>
         {globalError && <div className="global-error"><span>{globalError}</span><button onClick={() => setGlobalError("")}><X size={16} /></button></div>}
-        {currentStep.slug === "upload" && <UploadPage onComplete={upload} busy={busy} />}
+        {currentStep.slug === "upload" && (
+          <UploadPage
+            onComplete={upload}
+            busy={busy}
+            backendStatus={backendStatus}
+            health={health}
+            onRetry={() => setHealthAttempt((value) => value + 1)}
+          />
+        )}
         {currentStep.slug === "inspect" && job && (
           <InspectPage job={job} onAnalyze={analyze} onAddFiles={addFiles} addingFiles={addingFiles} />
         )}

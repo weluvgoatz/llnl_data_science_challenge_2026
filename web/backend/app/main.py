@@ -20,7 +20,7 @@ cors_origins = [
     origin.strip()
     for origin in os.environ.get(
         "LATTICE_CORS_ORIGINS",
-        "http://localhost:5173,http://127.0.0.1:5173",
+        "http://localhost:5173,http://127.0.0.1:5173,https://weluvgoatz.github.io",
     ).split(",")
     if origin.strip()
 ]
@@ -31,7 +31,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024
+MAX_UPLOAD_BYTES = int(os.environ.get("LATTICE_MAX_UPLOAD_BYTES", str(64 * 1024 * 1024)))
+MAX_TIFF_EXPANDED_BYTES = int(
+    os.environ.get("LATTICE_MAX_TIFF_EXPANDED_BYTES", str(64 * 1024 * 1024))
+)
+STORAGE_MODE = os.environ.get("LATTICE_STORAGE_MODE", "local")
+
+
+class UploadLimitError(ValueError):
+    """An upload exceeds the resource envelope configured for this service."""
+
+
+def format_mib(byte_count: int) -> str:
+    return f"{byte_count / 1024 / 1024:.0f} MiB"
 
 
 def get_job_or_404(job_id: str) -> dict:
@@ -95,7 +107,12 @@ def stream_file(path: Path, media_type: str, filename: str | None = None) -> Str
 
 @app.get("/api/health")
 async def health() -> dict:
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "maxUploadBytes": MAX_UPLOAD_BYTES,
+        "maxTiffExpandedBytes": MAX_TIFF_EXPANDED_BYTES,
+        "storage": STORAGE_MODE,
+    }
 
 
 @app.post("/api/jobs", status_code=201)
@@ -133,11 +150,25 @@ async def upload_files(job_id: str, files: list[UploadFile] = File(...)) -> dict
                 while chunk := upload.file.read(1024 * 1024):
                     size += len(chunk)
                     if size > MAX_UPLOAD_BYTES:
-                        raise ValueError(f"{original} exceeds the 2 GiB limit")
+                        raise UploadLimitError(
+                            f"{original} exceeds this deployment's "
+                            f"{format_mib(MAX_UPLOAD_BYTES)} upload limit"
+                        )
                     stream.write(chunk)
             if size == 0:
                 raise ValueError(f"{original} is empty")
             metadata = inspect_upload(destination)
+            expanded_bytes = metadata.get("expandedBytes")
+            if (
+                metadata["kind"] == "tiff"
+                and isinstance(expanded_bytes, int)
+                and expanded_bytes > MAX_TIFF_EXPANDED_BYTES
+            ):
+                raise UploadLimitError(
+                    f"{original} expands to {format_mib(expanded_bytes)}; "
+                    f"this deployment supports TIFF volumes up to "
+                    f"{format_mib(MAX_TIFF_EXPANDED_BYTES)}"
+                )
             record = {
                 "id": file_id,
                 "name": original,
@@ -151,7 +182,8 @@ async def upload_files(job_id: str, files: list[UploadFile] = File(...)) -> dict
     except Exception as exc:
         for path in destinations:
             path.unlink(missing_ok=True)
-        raise HTTPException(400, str(exc)) from exc
+        status_code = 413 if isinstance(exc, UploadLimitError) else 400
+        raise HTTPException(status_code, str(exc)) from exc
 
     job["files"].extend(record for _, record in staged)
     job["state"] = "intake_ready"

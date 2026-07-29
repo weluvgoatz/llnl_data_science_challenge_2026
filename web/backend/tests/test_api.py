@@ -83,3 +83,66 @@ async def test_tiff_slice_and_invalid_extension(tmp_path, monkeypatch):
             files=[("files", ("notes.txt", b"nope", "text/plain"))],
         )
         assert bad.status_code == 400
+
+
+@pytest.mark.anyio
+async def test_health_reports_limits_and_cors(tmp_path, monkeypatch):
+    from app import main, store
+
+    store.DATA_ROOT = tmp_path
+    monkeypatch.setattr(main, "MAX_UPLOAD_BYTES", 64 * 1024 * 1024)
+    monkeypatch.setattr(main, "MAX_TIFF_EXPANDED_BYTES", 64 * 1024 * 1024)
+    monkeypatch.setattr(main, "STORAGE_MODE", "ephemeral")
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=main.app), base_url="http://test"
+    ) as client:
+        response = await client.get(
+            "/api/health",
+            headers={"Origin": "https://weluvgoatz.github.io"},
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "ok",
+        "maxUploadBytes": 64 * 1024 * 1024,
+        "maxTiffExpandedBytes": 64 * 1024 * 1024,
+        "storage": "ephemeral",
+    }
+    assert response.headers["access-control-allow-origin"] == "https://weluvgoatz.github.io"
+
+
+@pytest.mark.anyio
+async def test_upload_and_expanded_tiff_limits(tmp_path, monkeypatch):
+    from app import main, store
+
+    store.DATA_ROOT = tmp_path
+    monkeypatch.setattr(main, "MAX_UPLOAD_BYTES", 8)
+    monkeypatch.setattr(main, "MAX_TIFF_EXPANDED_BYTES", 16)
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=main.app), base_url="http://test"
+    ) as client:
+        job = (await client.post("/api/jobs")).json()
+        response = await client.post(
+            f"/api/jobs/{job['id']}/files",
+            files=[("files", ("large.json", b'{"nodes":[]}', "application/json"))],
+        )
+        assert response.status_code == 413
+        assert "upload limit" in response.json()["detail"]
+
+        monkeypatch.setattr(main, "MAX_UPLOAD_BYTES", 1024 * 1024)
+        tiff_path = tmp_path / "expanded.tif"
+        tifffile.imwrite(
+            tiff_path,
+            np.zeros((3, 4, 4), dtype=np.uint16),
+            photometric="minisblack",
+        )
+        with tiff_path.open("rb") as source:
+            response = await client.post(
+                f"/api/jobs/{job['id']}/files",
+                files=[("files", ("expanded.tif", source, "image/tiff"))],
+            )
+
+    assert response.status_code == 413
+    assert "expands to" in response.json()["detail"]

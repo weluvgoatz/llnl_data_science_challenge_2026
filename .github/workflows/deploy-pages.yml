@@ -35,12 +35,29 @@ jobs:
         working-directory: web/frontend
         run: npm ci
 
+      - name: Validate deployment configuration
+        env:
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+        run: |
+          test -n "$VITE_API_BASE_URL" || {
+            echo "VITE_API_BASE_URL repository variable is required"
+            exit 1
+          }
+
       - name: Build frontend
         working-directory: web/frontend
         env:
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
           VITE_BASE_PATH: /llnl_data_science_challenge_2026/
         run: npm run build
+
+      - name: Smoke test Pages bundle
+        working-directory: web/frontend
+        env:
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+        run: |
+          grep -q '/llnl_data_science_challenge_2026/assets/' dist/index.html
+          grep -q "$VITE_API_BASE_URL" dist/assets/*.js
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

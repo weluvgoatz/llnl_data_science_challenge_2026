@@ -85,3 +85,10 @@ export interface Job {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface ApiHealth {
+  status: "ok";
+  maxUploadBytes: number;
+  maxTiffExpandedBytes: number;
+  storage: "ephemeral" | "local" | string;
+}
