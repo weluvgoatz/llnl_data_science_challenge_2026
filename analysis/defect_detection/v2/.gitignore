@@ -1,0 +1,13 @@
+# Generated artefacts — rebuilt on demand, kept out of the repo.
+# model3d is ~111 MB of PLY meshes; `python run_pipeline.py --viz` regenerates it
+# in about two minutes, so there is no reason to carry it in git history.
+model3d/
+manual_validation/
+panels/
+__pycache__/
+*.pyc
+
+# The classification itself is a build output of the scan + design JSON.
+# defect_list/ IS committed: it is the contract downstream agents read.
+strut_classification_v2.json
+baseline_v2_backup.json
