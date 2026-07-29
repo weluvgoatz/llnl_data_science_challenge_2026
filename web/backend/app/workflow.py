@@ -313,7 +313,11 @@ def check_and_correct_tilt(job_id: str, file_id: str) -> None:
         segmented.unlink(missing_ok=True)
 
 
-def _run_external_harness(root: Path, job: dict[str, Any]) -> bool:
+def _run_external_harness(
+    root: Path,
+    job: dict[str, Any],
+    prepared: Any | None = None,
+) -> bool:
     command = os.environ.get("CODEX_ANALYSIS_COMMAND", "").strip()
     if not command:
         return False
@@ -328,8 +332,6 @@ def _run_external_harness(root: Path, job: dict[str, Any]) -> bool:
       )
     env = dict(os.environ)
 
-    # start with very base level prompts
-
     prompt_parts = [
           "Act as the orchestration agent for this analysis.",
           "Analyze only the files belonging to the current job.",
@@ -337,20 +339,45 @@ def _run_external_harness(root: Path, job: dict[str, Any]) -> bool:
           "Write PNG results to analysis/ and the Markdown report to report/report.md.",
       ]
 
-    # add specific calls to specific subagents/tools
-
-    specific_prompts = "Spawn the strut_error_detection_agent in order to perform specific analysis. Stop yourself when that process is complete."
-    prompt_parts.append(specific_prompts)
+    if prepared is not None:
+      env.update(prepared.environment())
+      env["LATTICE_OUTPUT_DIR"] = str((root / "analysis").resolve())
+      prompt_parts.extend(
+        [
+          "Deterministic preprocessing is already complete.",
+          "Do not call segment_tiff, skeletonize, build_asbuilt_graph, "
+          "skel_to_json.py, clean_and_compare.py, or any equivalent preprocessing.",
+          "Do not spawn the self-contained strut_error_detection_agent because it "
+          "owns preprocessing that has already finished.",
+          f"The cleaned segmentation is {prepared.mask}.",
+          f"The skeleton coordinate cache is {prepared.skeleton}.",
+          f"The cleaned as-built graph is {prepared.graph}.",
+          f"The classifier graph cache is {prepared.classifier_graph}.",
+          "Call classify_lattice_defects with "
+          f"base={prepared.base!r}, stk_dir={str(prepared.stack_dir)!r}, and "
+          f"prebuilt_graph_path={str(prepared.classifier_graph)!r}.",
+          "Then call detect_bent_struts, summarize_lattice_defects, and "
+          "render_defect_visualizations with "
+          f"output_dir={str((root / 'analysis').resolve())!r}.",
+          f"The required classification output is {prepared.classification}.",
+          "Use those results to write report/report.md. Finish only after the "
+          "classification JSON, at least one analysis PNG, and the report exist.",
+        ]
+      )
 
     if tiff_item:
       tiff_path = (root / tiff_item["path"]).resolve()
-      env["LATTICE_BASE"] = tiff_path.stem
-      env["LATTICE_STK"] = str(tiff_path.parent)
+      selected_base = prepared.base if prepared is not None else tiff_path.stem
+      selected_stack = (
+        str(prepared.stack_dir) if prepared is not None else str(tiff_path.parent)
+      )
+      env["LATTICE_BASE"] = selected_base
+      env["LATTICE_STK"] = selected_stack
 
       prompt_parts.append(
         f"The CT input is {tiff_path}. "
-        f"Use LATTICE_BASE={tiff_path.stem!r} and "
-        f"LATTICE_STK={str(tiff_path.parent)!r}."
+        f"Use LATTICE_BASE={selected_base!r} and "
+        f"LATTICE_STK={selected_stack!r}."
       )
     else:
       prompt_parts.append("No TIFF input was uploaded.")
@@ -367,18 +394,28 @@ def _run_external_harness(root: Path, job: dict[str, Any]) -> bool:
 
     prompt = " ".join(prompt_parts)
 
-    completed = subprocess.run(
-      [
-        part.format(job_dir=str(root), prompt=prompt)
-        for part in shlex.split(command)
-      ],
-      cwd=root,
-      env=env,
-      capture_output=True,
-      text=True,
-      timeout=int(os.environ.get("CODEX_ANALYSIS_TIMEOUT", "900")),
-      check=False,
-    )
+    argv = [
+      part.format(job_dir=str(root), prompt=prompt)
+      for part in shlex.split(command)
+    ]
+    try:
+      completed = subprocess.run(
+        argv,
+        cwd=root,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=int(os.environ.get("CODEX_ANALYSIS_TIMEOUT", "900")),
+        check=False,
+      )
+    except subprocess.TimeoutExpired as exc:
+      stdout = exc.stdout.decode() if isinstance(exc.stdout, bytes) else (exc.stdout or "")
+      stderr = exc.stderr.decode() if isinstance(exc.stderr, bytes) else (exc.stderr or "")
+      (root / "codex.log").write_text(
+        stdout + "\n--- stderr ---\n" + stderr + "\n--- error ---\nTimed out",
+        encoding="utf-8",
+      )
+      raise RuntimeError("Codex analysis timed out") from exc
 
     (root / "codex.log").write_text(
       completed.stdout + "\n--- stderr ---\n" + completed.stderr,
@@ -466,23 +503,58 @@ def run_analysis(job_id: str) -> None:
     save_job(job)
     root = job_dir(job_id)
     try:
-        external = _run_external_harness(root, job)
-        if not external:
-            _run_builtin(root, job)
-        artifacts, report = _discover_outputs(root)
-        if external and not report:
-            raise RuntimeError("Codex completed without creating report/report.md")
-
         tiff_item = next((entry for entry in job["files"] if entry["kind"] == "tiff"), None)
         design_item = next((entry for entry in job["files"] if entry["kind"] == "json"), None)
+        prepared = None
         if tiff_item and design_item:
-            from .defect_detection import run_strut_defect_detection
+            from .defect_detection import (
+                prepare_defect_inputs,
+                publish_classification,
+                run_deterministic_classification,
+            )
 
-            run_strut_defect_detection(
+            prepared = prepare_defect_inputs(
                 job_id,
                 tiff_item["path"],
                 str((root / design_item["path"]).resolve()),
             )
+
+            try:
+                external = _run_external_harness(root, job, prepared)
+                if not external:
+                    raise RuntimeError("Codex analysis command is not configured")
+                publish_classification(job_id, prepared)
+                artifacts, report = _discover_outputs(root)
+                if not report:
+                    raise RuntimeError("Codex completed without creating report/report.md")
+                if not artifacts:
+                    raise RuntimeError("Codex completed without creating analysis PNGs")
+            except Exception as codex_error:
+                run_deterministic_classification(job_id, prepared)
+                _run_builtin(root, job)
+                artifacts, report = _discover_outputs(root)
+                job = load_job(job_id)
+                defects = dict(job.get("defects") or {})
+                defects["codexFallback"] = True
+                defects["codexError"] = str(codex_error)
+                job["defects"] = defects
+                save_job(job)
+        elif tiff_item and not design_item:
+            external = _run_external_harness(root, job)
+            if not external:
+                _run_builtin(root, job)
+            artifacts, report = _discover_outputs(root)
+            if external and not report:
+                raise RuntimeError("Codex completed without creating report/report.md")
+            if external and not artifacts:
+                raise RuntimeError("Codex completed without creating analysis PNGs")
+        else:
+            external = _run_external_harness(root, job)
+            if not external:
+                _run_builtin(root, job)
+            artifacts, report = _discover_outputs(root)
+            if external and not report:
+                raise RuntimeError("Codex completed without creating report/report.md")
 
         job = load_job(job_id)
         job["artifacts"] = artifacts

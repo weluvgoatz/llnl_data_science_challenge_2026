@@ -477,9 +477,58 @@ function DefectSection({ job }: { job: Job }) {
 }
 
 function AnalysisPage({ job }: { job: Job }) {
+  const [focused, setFocused] = useState<(typeof job.artifacts)[number] | null>(null);
+
   return (
     <section className="page">
       <DefectSection job={job} />
+      <section>
+        <div className="page-heading split">
+          <div>
+            <span className="eyebrow">Visual findings</span>
+            <h1>Analysis images generated from the scan.</h1>
+            <p>
+              {job.artifacts.length
+                ? `${job.artifacts.length} visual output${job.artifacts.length === 1 ? "" : "s"} produced by the analysis workflow.`
+                : "The analysis workflow did not produce any visual outputs."}
+            </p>
+          </div>
+          {job.artifacts.length > 0 && (
+            <span className="finding-count">
+              <Microscope size={16} /> {job.artifacts.length} findings
+            </span>
+          )}
+        </div>
+        <div className="artifact-grid">
+          {job.artifacts.map((artifact) => (
+            <article className="artifact-card" key={artifact.id}>
+              <button
+                className="artifact-image"
+                onClick={() => setFocused(artifact)}
+                aria-label={`Enlarge ${artifact.caption}`}
+              >
+                <img src={artifact.downloadUrl} alt={artifact.caption} />
+              </button>
+              <div>
+                <span>
+                  <strong>{artifact.caption}</strong>
+                  <small>{artifact.name}</small>
+                </span>
+                <a href={artifact.downloadUrl} download aria-label={`Download ${artifact.name}`}>
+                  <Download size={17} />
+                </a>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+      {focused && (
+        <div className="lightbox" role="dialog" onClick={() => setFocused(null)}>
+          <button aria-label="Close image"><X /></button>
+          <img src={focused.downloadUrl} alt={focused.caption} />
+          <strong>{focused.caption}</strong>
+        </div>
+      )}
     </section>
   );
 }

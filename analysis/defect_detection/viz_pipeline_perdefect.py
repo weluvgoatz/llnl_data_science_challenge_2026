@@ -16,6 +16,7 @@ The decision rules (from unified_defects_accurate.py):
 """
 
 import json
+import os
 from pathlib import Path
 
 import numpy as np
@@ -33,7 +34,9 @@ GRAPH = STK / f"{BASE}_segmented_clean_asbuilt_graph_cleaned.json"
 RAW = STK / f"{BASE}.tif"
 MASK = STK / f"{BASE}_segmented_clean.tif"
 SKELC = STK / f"{BASE}_segmented_clean.skelcoords.npz"
-OUTDIR = ROOT / "analysis/defect_detection"
+OUTDIR = Path(
+    os.environ.get("LATTICE_OUTPUT_DIR", str(ROOT / "analysis/defect_detection"))
+)
 
 UM = 58.1
 MISSING_FRAC = 0.15
@@ -58,6 +61,7 @@ def longest_gap_run(hit):
 
 
 def main():
+    OUTDIR.mkdir(parents=True, exist_ok=True)
     print("loading raw, mask, skeleton, graph ...")
     raw = tifffile.imread(RAW)
     mask = tifffile.imread(MASK) > 0

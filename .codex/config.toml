@@ -1,0 +1,36 @@
+[mcp_servers.segmentation-tools]
+command = "/home/weluv/miniconda3/envs/dssi_env/bin/python3"
+args = ["/home/weluv/llnl_data_science_challenge_2026/src/mcp_server.py"]
+env = {}
+
+[mcp_servers.lattice-defects]
+command = "/home/weluv/miniconda3/envs/dssi_env/bin/python3"
+args = ["/home/weluv/llnl_data_science_challenge_2026/src/defect_mcp_server.py"]
+env = {}
+
+[mcp_servers.segmentation-tools.tools.segment_ct_dataset]
+approval_mode = "approve"
+
+[mcp_servers.segmentation-tools.tools.visualize_slice]
+approval_mode = "approve"
+
+[mcp_servers.segmentation-tools.tools.skeletonize]
+approval_mode = "approve"
+
+[mcp_servers.segmentation-tools.tools.segment_tiff]
+approval_mode = "approve"
+
+[mcp_servers.segmentation-tools.tools.correct_tiff_tilt]
+approval_mode = "approve"
+
+[mcp_servers.segmentation-tools.tools.view_stl]
+approval_mode = "approve"
+
+[mcp_servers.segmentation-tools.tools.skeletonize_tiff]
+approval_mode = "approve"
+
+[projects."/home/weluv/llnl_data_science_challenge_2026"]
+trust_level = "trusted"
+
+[tui.model_availability_nux]
+"gpt-5.6-sol" = 3

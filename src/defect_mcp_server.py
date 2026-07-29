@@ -33,7 +33,13 @@ UM = 58.1
 CATS = ("present", "missing", "bent", "thin", "disconnected")
 
 
-def _run(script: str, base: str | None, stk_dir: str | None, timeout: int = 3600) -> str:
+def _run(
+    script: str,
+    base: str | None,
+    stk_dir: str | None,
+    timeout: int = 3600,
+    extra_env: dict[str, str] | None = None,
+) -> str:
     """Run a pipeline script in analysis/defect_detection with the chosen specimen."""
     path = DD / script
     if not path.is_file():
@@ -43,6 +49,8 @@ def _run(script: str, base: str | None, stk_dir: str | None, timeout: int = 3600
         env["LATTICE_BASE"] = base
     if stk_dir:
         env["LATTICE_STK"] = stk_dir
+    if extra_env:
+        env.update(extra_env)
     env["PYTHONIOENCODING"] = "utf-8"
     try:
         proc = subprocess.run([sys.executable, str(path)], cwd=str(DD), env=env,
@@ -117,7 +125,11 @@ def build_asbuilt_graph(base: str = "", stk_dir: str = "") -> str:
 
 
 @mcp.tool()
-def classify_lattice_defects(base: str = "", stk_dir: str = "") -> str:
+def classify_lattice_defects(
+    base: str = "",
+    stk_dir: str = "",
+    prebuilt_graph_path: str = "",
+) -> str:
     """Classify every designed strut as present/missing/bent/thin/disconnected.
 
     Metal-anchored, topology-first classifier (registers the design to the
@@ -126,7 +138,17 @@ def classify_lattice_defects(base: str = "", stk_dir: str = "") -> str:
     design graph JSON. Writes <base>_unified_defects_accurate.json and prints the
     per-category counts. Use summarize_lattice_defects() on the output.
     """
-    return _run("unified_defects_accurate.py", base or None, stk_dir or None)
+    extra_env = (
+        {"LATTICE_PREBUILT_GRAPH": prebuilt_graph_path}
+        if prebuilt_graph_path
+        else None
+    )
+    return _run(
+        "unified_defects_accurate.py",
+        base or None,
+        stk_dir or None,
+        extra_env=extra_env,
+    )
 
 
 @mcp.tool()
@@ -137,12 +159,27 @@ def detect_bent_struts(base: str = "", stk_dir: str = "") -> str:
 
 
 @mcp.tool()
-def render_defect_visualizations(base: str = "", stk_dir: str = "") -> str:
+def render_defect_visualizations(
+    base: str = "",
+    stk_dir: str = "",
+    output_dir: str = "",
+) -> str:
     """Render the per-defect pipeline-validation figures and the zoomed defect
     atlas from the raw CT (requires a completed classification). Writes PNGs into
     analysis/defect_detection/."""
-    out = _run("viz_pipeline_perdefect.py", base or None, stk_dir or None)
-    out += "\n\n=== atlas ===\n" + _run("viz_defect_atlas.py", base or None, stk_dir or None)
+    extra_env = {"LATTICE_OUTPUT_DIR": output_dir} if output_dir else None
+    out = _run(
+        "viz_pipeline_perdefect.py",
+        base or None,
+        stk_dir or None,
+        extra_env=extra_env,
+    )
+    out += "\n\n=== atlas ===\n" + _run(
+        "viz_defect_atlas.py",
+        base or None,
+        stk_dir or None,
+        extra_env=extra_env,
+    )
     return out
 
 

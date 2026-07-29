@@ -7,6 +7,7 @@ defect looks like.
 """
 
 import json
+import os
 from pathlib import Path
 
 import numpy as np
@@ -21,7 +22,9 @@ UNI = STK / f"{BASE}_unified_defects_accurate.json"
 BENT = STK / f"{BASE}_asbuilt_bent.json"
 RAW = STK / f"{BASE}.tif"
 MASK = STK / f"{BASE}_segmented_clean.tif"
-OUT = ROOT / "analysis/defect_detection/VIZ_9_defect_atlas.png"
+OUT = Path(
+    os.environ.get("LATTICE_OUTPUT_DIR", str(ROOT / "analysis/defect_detection"))
+) / "VIZ_9_defect_atlas.png"
 
 NCOL = 6
 UM = 58.1
@@ -50,6 +53,7 @@ def sample(p0, p1, metal, raw, shape, K=26):
 
 
 def main():
+    OUT.parent.mkdir(parents=True, exist_ok=True)
     uni = json.load(open(UNI))["struts"]
     bent = json.load(open(BENT))["struts"]
     bthr = json.load(open(BENT))["meta"]["threshold_vox"]

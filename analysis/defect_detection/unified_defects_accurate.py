@@ -22,6 +22,7 @@ version removes that error:
 
 import gc
 import json
+import os
 from collections import defaultdict
 from pathlib import Path
 
@@ -190,6 +191,24 @@ def build_asbuilt_graph(mask):
     return NP, edge_of, bow
 
 
+def load_prebuilt_graph(path):
+    """Load a graph prepared outside the Codex tool-call loop."""
+    with np.load(path) as cached:
+        nodes = cached["nodes"]
+        pairs = cached["edges"]
+        bows = cached["bow"]
+    if nodes.ndim != 2 or nodes.shape[1] != 3:
+        raise ValueError("prebuilt graph nodes must have shape (N, 3)")
+    if pairs.ndim != 2 or pairs.shape[1] != 2 or len(pairs) != len(bows):
+        raise ValueError("prebuilt graph edges/bow arrays are inconsistent")
+    edge_of = {tuple(int(value) for value in pair): True for pair in pairs}
+    bow = {
+        tuple(int(value) for value in pair): float(value)
+        for pair, value in zip(pairs, bows)
+    }
+    return nodes, edge_of, bow
+
+
 def main():
     print("loading mask + raw ...")
     mask = tifffile.imread(MASK) > 0
@@ -197,8 +216,13 @@ def main():
     raw = tifffile.imread(RAW)
     shape = np.array(mask.shape)
 
-    print("rebuilding as-built graph (cached skeleton) ...")
-    NP, edge_of, bow = build_asbuilt_graph(mask)
+    prebuilt_graph = os.environ.get("LATTICE_PREBUILT_GRAPH", "").strip()
+    if prebuilt_graph:
+        print(f"loading deterministic as-built graph from {prebuilt_graph} ...")
+        NP, edge_of, bow = load_prebuilt_graph(prebuilt_graph)
+    else:
+        print("rebuilding as-built graph (cached skeleton) ...")
+        NP, edge_of, bow = build_asbuilt_graph(mask)
     del mask; gc.collect()
     print(f"  as-built: {len(NP)} nodes, {len(edge_of)} struts")
 

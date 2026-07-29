@@ -71,8 +71,8 @@ Without additional configuration, the backend uses a deterministic local
 workflow that creates representative TIFF slice images and a Markdown report.
 This makes the complete UI usable without model credentials.
 
-To run the analysis stage through Codex instead, set a command template before
-starting the backend:
+To run classification, visualization, and report generation through Codex, set
+a command template before starting the backend:
 
 ```bash
 export CODEX_ANALYSIS_COMMAND='codex exec --ephemeral --sandbox workspace-write {prompt}'
@@ -80,10 +80,13 @@ export CODEX_ANALYSIS_TIMEOUT=900
 python -m uvicorn app.main:app --reload
 ```
 
-The command runs inside the individual job directory. Because that directory is
-inside this Git repository, Codex can discover the repository configuration,
-the `segmentation-tools` MCP server, and the local NDE report skill. The harness
-requires Codex to place:
+For jobs containing both a TIFF and design JSON, Run Analysis first performs
+segmentation, skeletonization, and as-built graph construction deterministically.
+Those stages run before the Codex timeout and are reused after a retry. Codex is
+then given the validated artifacts and is prohibited from repeating
+preprocessing. The command runs inside the individual job directory, where Codex
+can discover the repository configuration, defect tools, and local report
+skills. The harness requires Codex to place:
 
 - PNG outputs in `analysis/`
 - The report at `report/report.md`
@@ -91,6 +94,26 @@ requires Codex to place:
 The complete Codex event log is retained as `codex.log` inside the job directory.
 Use the narrowest sandbox that permits the configured MCP workflow. Do not use a
 sandbox bypass for uploaded or otherwise untrusted data.
+
+If Codex is unavailable, times out, or returns incomplete artifacts, Run Analysis
+reuses the deterministic preprocessing, falls back to deterministic
+classification, and generates the basic local report. A TIFF without a design
+JSON continues to use the basic local report without defect classification.
+
+TIFF uploads use the project-scoped `tiff_tilt_correction_agent` automatically.
+The parent Codex turn delegates to that agent, which calls the `segment_tiff`
+MCP tool in adaptive mode before correcting both tilt axes. Override its command
+or timeout when needed:
+
+```bash
+export CODEX_TILT_COMMAND='codex exec --ephemeral --sandbox workspace-write {prompt}'
+export CODEX_TILT_TIMEOUT=900
+```
+
+If that Codex run is unavailable or fails validation, the backend falls back to
+the same segmentation and binary tilt-correction implementation locally. Both
+paths expose a segmented processed TIFF, including when no meaningful tilt is
+detected. Per-upload Codex logs are stored under the job's `tilt/` directory.
 
 ## Test and build
 
