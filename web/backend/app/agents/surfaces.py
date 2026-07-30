@@ -33,6 +33,7 @@ def mount_surface(
     filter_verdicts: list[str] | None = None,
     select_strut_ids: list[int] | None = None,
     slice_index: int | None = None,
+    show_tilt_pane: bool | None = None,
 ) -> dict[str, Any]:
     if component not in VALID_COMPONENTS:
         raise ToolError(f"Unknown component {component!r}. Valid components: {sorted(VALID_COMPONENTS)}")
@@ -64,7 +65,9 @@ def mount_surface(
                 "DataViz needs a TIFF (renders a slice) or a design JSON (renders its strut graph), "
                 "or pass artifact_id for a generated plot/gallery image."
             )
-        return _directive("DataViz", file_id=file["id"], slice_index=slice_index)
+        if show_tilt_pane and file["kind"] != "tiff":
+            raise ToolError("show_tilt_pane only applies to a TIFF file.")
+        return _directive("DataViz", file_id=file["id"], slice_index=slice_index, show_tilt_pane=show_tilt_pane)
 
     if component == "DefectView":
         defects = job.get("defects")

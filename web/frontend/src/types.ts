@@ -135,6 +135,7 @@ export interface SurfaceProps {
   filter_verdicts?: StrutVerdict[];
   select_strut_ids?: number[];
   slice_index?: number;
+  show_tilt_pane?: boolean;
 }
 
 export interface MountedSurface {
@@ -157,14 +158,19 @@ export interface ChatTurn {
   mount?: MountedSurface | null;
 }
 
-// A chat-pane timeline entry: either a real backend chat turn, or a
-// frontend-only status narration line (e.g. "skeletonizing the lattice…")
-// derived from real polled job state -- never attributed to the model, kept
-// visually distinct, so "what the agent said" and "what we observed happen"
-// are never confused with each other.
+// A chat-pane timeline entry. "turn" is a real backend chat turn. "status"
+// is a frontend-only narration line (e.g. "skeletonizing the lattice…")
+// derived from real polled job state -- deliberately understated (a small
+// pill), never attributed to the model. "announcement" is also frontend-
+// synthesized from real polled state (not a new LLM call), but for exactly
+// one event -- analysis reaching "complete" -- it's rendered with the same
+// visual weight as a real assistant reply, since the whole point is for the
+// user to reliably notice it; the text itself is still a fixed template
+// over real state, never an invented number or claim.
 export type TimelineEntry =
   | { kind: "turn"; at: number; turn: ChatTurn }
-  | { kind: "status"; at: number; id: string; text: string };
+  | { kind: "status"; at: number; id: string; text: string }
+  | { kind: "announcement"; at: number; id: string; text: string };
 
 export interface Job {
   id: string;

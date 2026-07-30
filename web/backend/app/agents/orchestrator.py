@@ -15,6 +15,7 @@ import openai
 from . import subagents, surfaces
 from .runtime import run_tool_loop
 from .. import chat_store
+from ..store import load_job
 
 DEFAULT_MODEL = "gpt-5.4"  # matches the model already used by .codex/agents/strut_error_detection_agent.toml
 
@@ -23,7 +24,7 @@ ORCHESTRATOR_SYSTEM_PROMPT = """You are the orchestrator for Lattice Lens, an X-
 - detection_agent: owns the numerical pipeline for the current job -- starting the initial analysis, checking its status, (re)running defect classification with different thresholds, generating the per-defect validation image gallery, and exporting 3D models. Call it for anything that changes/(re)produces pipeline output, or to check real progress.
 - report_agent: reads already-computed result metadata (per-strut evidence, defect hotspots by unit cell, measured-vs-nominal thickness) and explains findings in plain language, citing real numbers.
 - plot_agent: analyzes result data and renders the most suitable chart as a PNG.
-- mount_surface(component, ...): put one of four surfaces in the main area -- ModelViewer (an uploaded STL, file_id), DefectView (the classified 3D lattice, optional version_id/filter_verdicts/select_strut_ids), ReportView (the NDE report, no args), or DataViz (a TIFF slice / design-JSON graph via file_id+slice_index, or a generated plot/gallery image via artifact_id).
+- mount_surface(component, ...): put one of four surfaces in the main area -- ModelViewer (an uploaded STL, file_id), DefectView (the classified 3D lattice, optional version_id/filter_verdicts/select_strut_ids), ReportView (the NDE report, no args), or DataViz (a TIFF slice / design-JSON graph via file_id+slice_index, or a generated plot/gallery image via artifact_id). For a TIFF specifically: showing it plainly (e.g. "show me the TIFF") means file_id only -- do NOT set show_tilt_pane. Only set show_tilt_pane=true when the user explicitly asks about tilt/alignment correction (e.g. "fix the tilt", "is this scan tilted") -- that opens a side pane with the correction process/result next to the still-untouched original; it never replaces the main view.
 - unmount_surface(): clear the main area back to the file list.
 
 Rules:
@@ -34,7 +35,8 @@ Rules:
 5. mount_surface validates preconditions itself and returns a clear error if something isn't ready (analysis still running, no design JSON uploaded, etc.) -- relay that error plainly rather than guessing why it failed or silently retrying.
 6. This job's TIFF/STL/JSON files can be shown (ModelViewer, DataViz) at any time, even before analysis has run -- only DefectView needs a completed classification. If the user asks for something that isn't ready yet, say so and offer what IS available right now (e.g. "the model view works now; defect queries need analysis to run first").
 7. run_initial_analysis (via detection_agent) starts the pipeline in the background and returns immediately -- it does not mean analysis is done. Don't claim results are ready until a status check or a later message confirms it.
-8. Keep your final reply conversational and concise; the full evidence trail is stored separately for audit, so you don't need to repeat every number a subagent returned -- just the ones that actually answer the question."""
+8. Starting or checking analysis (run_initial_analysis, get_job_status) is NEVER by itself a reason to call mount_surface or unmount_surface. Whatever the user is currently looking at must stay exactly as it is through the whole analyzing -> analyzed transition -- report progress in your reply text only, the same way rule 4's "mount when it's better shown" does not apply here. Only mount/unmount when the user's message is itself a request to look at, hide, or replace something.
+9. Keep your final reply conversational and concise; the full evidence trail is stored separately for audit, so you don't need to repeat every number a subagent returned -- just the ones that actually answer the question."""
 
 ORCHESTRATOR_TOOLS: list[dict[str, Any]] = [
     {
@@ -93,6 +95,15 @@ ORCHESTRATOR_TOOLS: list[dict[str, Any]] = [
                 },
                 "select_strut_ids": {"type": "array", "items": {"type": "integer"}, "description": "DefectView: struts to highlight."},
                 "slice_index": {"type": "integer", "description": "DataViz on a TIFF: which slice."},
+                "show_tilt_pane": {
+                    "type": "boolean",
+                    "description": (
+                        "DataViz on a TIFF only. Leave unset/false for a plain 'show me the TIFF' request -- "
+                        "that renders just the raw slice. Set true only when the user explicitly asks about "
+                        "tilt correction; opens a side pane with the correction progress/result next to the "
+                        "still-unmodified original, it does not replace the main view."
+                    ),
+                },
             },
             "required": ["component"],
         },
@@ -109,6 +120,20 @@ def _client() -> openai.OpenAI:
     return openai.OpenAI()  # reads OPENAI_API_KEY from the environment
 
 
+def _describe_files(job: dict[str, Any]) -> str:
+    """A short, real inventory of this job's uploaded files -- without this,
+    the orchestrator has no way to know a TIFF/STL/JSON exists at all, so a
+    generic reference ("this scan", "the model") would force it to ask the
+    user for a file_id it could otherwise resolve on its own (mount_surface
+    already auto-resolves when exactly one file of the requested kind
+    exists)."""
+    if not job["files"]:
+        return "No files uploaded yet."
+    return "\n".join(
+        f"- {f['name']} (kind={f['kind']}, id={f['id']}, {f.get('summary', '')})" for f in job["files"]
+    )
+
+
 def handle_chat_turn(job_id: str, user_message: str, model: str | None = None) -> dict[str, Any]:
     """Run one chat turn end to end: load conversation state, let the
     orchestrator delegate to subagents and mount/unmount a surface as
@@ -117,6 +142,16 @@ def handle_chat_turn(job_id: str, user_message: str, model: str | None = None) -
     """
     client = _client()
     model = model or os.environ.get("OPENAI_MODEL", DEFAULT_MODEL)
+
+    job = load_job(job_id)
+    system = (
+        f"{ORCHESTRATOR_SYSTEM_PROMPT}\n\n"
+        f"Current job files:\n{_describe_files(job)}\n\n"
+        "When the user refers to a file generically (\"this scan\", \"the TIFF\", \"the model\") and exactly "
+        "one file of that kind is listed above, use it directly -- mount_surface and detection_agent resolve "
+        "file_id on their own when there's only one candidate, so don't ask the user to repeat what's already "
+        "listed here."
+    )
 
     messages = chat_store.load_conversation(job_id)
     messages.append({"role": "user", "content": user_message})
@@ -153,7 +188,7 @@ def handle_chat_turn(job_id: str, user_message: str, model: str | None = None) -
     result = run_tool_loop(
         client=client,
         model=model,
-        system=ORCHESTRATOR_SYSTEM_PROMPT,
+        system=system,
         tools=ORCHESTRATOR_TOOLS,
         dispatch=dispatch,
         messages=messages,

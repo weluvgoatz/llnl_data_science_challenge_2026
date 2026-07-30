@@ -14,7 +14,7 @@ import {
   UploadCloud,
   X,
 } from "lucide-react";
-import { DragEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api";
 import { ChatPanel } from "./components/ChatPanel";
 import { StlViewer } from "./components/StlViewer";
@@ -50,11 +50,6 @@ const SURFACE_LABELS: Record<MountedSurface["component"], string> = {
   DataViz: "Data",
 };
 
-function formatBytes(bytes: number) {
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
-
 function fileIcon(kind: InputFile["kind"]) {
   if (kind === "stl") return <Box size={20} />;
   if (kind === "json") return <FileJson size={20} />;
@@ -70,104 +65,6 @@ function MarkdownPreview({ url }: { url: string }) {
       .catch(() => setContent("The report preview could not be loaded."));
   }, [url]);
   return <pre className="report-preview">{content}</pre>;
-}
-
-function UploadScreen({ onComplete, busy }: { onComplete: (files: File[]) => Promise<void>; busy: boolean }) {
-  const [files, setFiles] = useState<File[]>([]);
-  const [dragging, setDragging] = useState(false);
-  const [error, setError] = useState("");
-  const supported = new Set(["json", "tif", "tiff", "stl"]);
-
-  const addFiles = (incoming: File[]) => {
-    setError("");
-    const invalid = incoming.find((file) => !supported.has(file.name.split(".").pop()?.toLowerCase() || ""));
-    if (invalid) {
-      setError(`${invalid.name} is not a supported JSON, TIFF, or STL file.`);
-      return;
-    }
-    setFiles((current) => {
-      const keys = new Set(current.map((file) => `${file.name}:${file.size}`));
-      return [...current, ...incoming.filter((file) => !keys.has(`${file.name}:${file.size}`))];
-    });
-  };
-  const drop = (event: DragEvent) => {
-    event.preventDefault();
-    setDragging(false);
-    addFiles(Array.from(event.dataTransfer.files));
-  };
-
-  return (
-    <section className="page upload-page">
-      <div className="page-heading centered">
-        <span className="eyebrow">New inspection</span>
-        <h1>Bring your lattice into focus.</h1>
-        <p>Upload one file or a matched set. Once they&rsquo;re in, just tell the agent what you want to see.</p>
-      </div>
-      <label
-        className={`dropzone ${dragging ? "dragging" : ""}`}
-        onDragOver={(event) => {
-          event.preventDefault();
-          setDragging(true);
-        }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={drop}
-      >
-        <input
-          type="file"
-          multiple
-          accept=".json,.tif,.tiff,.stl"
-          onChange={(event) => addFiles(Array.from(event.target.files || []))}
-        />
-        <div className="upload-mark">
-          <UploadCloud size={27} />
-        </div>
-        <h2>Drop lattice files here</h2>
-        <p>
-          or <span>browse your computer</span>
-        </p>
-        <small>JSON · TIFF stacks · STL meshes &nbsp;·&nbsp; 2 GB maximum per file</small>
-      </label>
-      {error && <div className="error-banner">{error}</div>}
-      {files.length > 0 && (
-        <div className="queue">
-          <div className="queue-header">
-            <h3>
-              Ready to upload <span>{files.length}</span>
-            </h3>
-            <button className="text-button" onClick={() => setFiles([])}>
-              Clear all
-            </button>
-          </div>
-          {files.map((file, index) => {
-            const extension = file.name.split(".").pop()?.toLowerCase();
-            const kind = extension === "stl" ? "stl" : extension === "json" ? "json" : "tiff";
-            return (
-              <div className="queued-file" key={`${file.name}:${file.size}`}>
-                <div className={`file-glyph ${kind}`}>{fileIcon(kind)}</div>
-                <div className="file-copy">
-                  <strong>{file.name}</strong>
-                  <span>
-                    {formatBytes(file.size)} · {kind.toUpperCase()}
-                  </span>
-                </div>
-                <button
-                  aria-label={`Remove ${file.name}`}
-                  className="remove-button"
-                  onClick={() => setFiles((current) => current.filter((_, item) => item !== index))}
-                >
-                  <X size={17} />
-                </button>
-              </div>
-            );
-          })}
-          <button className="primary-button wide" disabled={busy} onClick={() => onComplete(files)}>
-            {busy ? <LoaderCircle className="spin" size={19} /> : <UploadCloud size={19} />}
-            {busy ? "Validating files…" : "Upload"}
-          </button>
-        </div>
-      )}
-    </section>
-  );
 }
 
 function TiltBanner({ file }: { file: InputFile }) {
@@ -189,7 +86,7 @@ function TiltBanner({ file }: { file: InputFile }) {
       return (
         <div className="tilt-banner corrected">
           <RotateCcw size={14} />
-          Tilt detected (Z-Y {file.tiltZY?.toFixed(2)}°, Z-X {file.tiltZX?.toFixed(2)}°) — corrected copy shown below.
+          Tilt detected (Z-Y {file.tiltZY?.toFixed(2)}°, Z-X {file.tiltZX?.toFixed(2)}°) — corrected copy shown here.
         </div>
       );
     case "failed":
@@ -203,94 +100,82 @@ function TiltBanner({ file }: { file: InputFile }) {
   }
 }
 
+// Plain, single-slice view of the raw TIFF -- no tilt banner, no automatic
+// original/corrected comparison. Tilt correction is a separate, explicit
+// side pane (see TiltCorrectionPane below), triggered only when asked for;
+// this component never shows it, so it stays correct wherever it's reused.
 function TiffViewer({ file, initialIndex }: { file: InputFile; initialIndex?: number }) {
   const [index, setIndex] = useState(initialIndex ?? Math.floor((file.pageCount || 1) / 2));
-  const [focused, setFocused] = useState<"original" | "corrected" | null>(null);
+  const [focused, setFocused] = useState(false);
   const max = Math.max((file.pageCount || 1) - 1, 0);
   const originalUrl = `${file.sliceUrl}?index=${index}`;
-  const correctedUrl = file.correctedSliceUrl ? `${file.correctedSliceUrl}?index=${index}` : null;
   const caption = `Slice ${index + 1} of ${max + 1}`;
-  const comparing = file.tiltStatus === "corrected" && correctedUrl;
-  const focusedUrl = focused === "corrected" ? correctedUrl : originalUrl;
 
   return (
     <div className="tiff-viewer">
-      <TiltBanner file={file} />
-      {comparing ? (
-        <div className="slice-compare">
-          <div className="slice-pane">
-            <span className="slice-pane-label">Original</span>
-            <button className="slice-frame" onClick={() => setFocused("original")} aria-label={`Enlarge original ${caption}`}>
-              <img src={originalUrl} alt={`Original ${caption}`} />
-            </button>
-          </div>
-          <div className="slice-pane">
-            <span className="slice-pane-label">Tilt-fixed</span>
-            <button className="slice-frame" onClick={() => setFocused("corrected")} aria-label={`Enlarge tilt-fixed ${caption}`}>
-              <img src={correctedUrl} alt={`Tilt-fixed ${caption}`} />
-            </button>
-          </div>
-        </div>
-      ) : (
-        <button className="slice-frame" onClick={() => setFocused("original")} aria-label={`Enlarge ${caption}`}>
-          <img src={originalUrl} alt={caption} />
-          <span className="viewer-hint">
-            <Maximize2 size={13} /> Click to see the full frame
-          </span>
-        </button>
-      )}
+      <button className="slice-frame" onClick={() => setFocused(true)} aria-label={`Enlarge ${caption}`}>
+        <img src={originalUrl} alt={caption} />
+        <span className="viewer-hint">
+          <Maximize2 size={13} /> Click to see the full frame
+        </span>
+      </button>
       <div className="slice-control">
         <label>
           Slice <strong>{index + 1}</strong> of {max + 1}
         </label>
         <input type="range" min="0" max={max} value={index} onChange={(e) => setIndex(Number(e.target.value))} />
       </div>
-      {focused && focusedUrl && (
-        <div className="lightbox" role="dialog" onClick={() => setFocused(null)}>
+      {focused && (
+        <div className="lightbox" role="dialog" onClick={() => setFocused(false)}>
           <button aria-label="Close image">
             <X />
           </button>
-          <img src={focusedUrl} alt={caption} />
-          <strong>
-            {focused === "corrected" ? "Tilt-fixed — " : comparing ? "Original — " : ""}
-            {caption}
-          </strong>
+          <img src={originalUrl} alt={caption} />
+          <strong>{caption}</strong>
         </div>
       )}
     </div>
   );
 }
 
-function TiffCompareSection({ file }: { file: InputFile }) {
+// The tilt-correction side pane -- only mounted when explicitly asked for.
+// Shows the correction's own progress (via the existing TiltBanner, already
+// polled for elsewhere) and, once ready, the corrected result alone; the
+// original is never repeated here since the main pane already shows it
+// untouched.
+function TiltCorrectionPane({ file }: { file: InputFile }) {
   const [index, setIndex] = useState(Math.floor((file.pageCount || 1) / 2));
   const max = Math.max((file.pageCount || 1) - 1, 0);
-  const originalUrl = `${file.sliceUrl}?index=${index}`;
   const correctedUrl = file.correctedSliceUrl ? `${file.correctedSliceUrl}?index=${index}` : null;
-  if (file.tiltStatus !== "corrected") return null;
 
   return (
-    <section className="tiff-compare">
-      <div className="page-heading">
-        <span className="eyebrow">Tilt inspection</span>
-        <h2>Original vs. tilt-corrected slices.</h2>
+    <aside className="tilt-pane">
+      <div className="tilt-pane-header">
+        <span className="eyebrow">Tilt correction</span>
       </div>
-      <div className="tiff-compare-grid">
-        <div className="tiff-compare-pane">
-          <span className="slice-pane-label">Original</span>
-          <ZoomableImage src={originalUrl} alt={`Original slice ${index + 1} of ${file.name}`} />
+      <TiltBanner file={file} />
+      {correctedUrl ? (
+        <>
+          <div className="tilt-pane-image">
+            <ZoomableImage src={correctedUrl} alt={`Tilt-corrected slice ${index + 1} of ${file.name}`} />
+          </div>
+          <div className="slice-control">
+            <label>
+              Slice <strong>{index + 1}</strong> of {max + 1}
+            </label>
+            <input type="range" min="0" max={max} value={index} onChange={(event) => setIndex(Number(event.target.value))} />
+          </div>
+        </>
+      ) : (
+        <div className="tilt-pane-empty">
+          {file.tiltStatus === "not_tilted"
+            ? "No meaningful tilt detected — nothing to correct."
+            : file.tiltStatus === "failed"
+            ? "Tilt check failed, so no corrected copy is available."
+            : "Checking for tilt…"}
         </div>
-        <div className="tiff-compare-pane">
-          <span className="slice-pane-label">Tilt-fixed</span>
-          {correctedUrl && <ZoomableImage src={correctedUrl} alt={`Tilt-fixed slice ${index + 1} of ${file.name}`} />}
-        </div>
-      </div>
-      <div className="slice-control">
-        <label>
-          Slice <strong>{index + 1}</strong> of {max + 1}
-        </label>
-        <input type="range" min="0" max={max} value={index} onChange={(event) => setIndex(Number(event.target.value))} />
-      </div>
-    </section>
+      )}
+    </aside>
   );
 }
 
@@ -312,7 +197,7 @@ function FileListSurface({
   addingFiles: boolean;
 }) {
   const working = job.state === "analyzing";
-  const canAddFiles = job.state === "intake_ready" && !addingFiles;
+  const canAddFiles = (job.state === "new" || job.state === "intake_ready") && !addingFiles;
   return (
     <div className="file-list-surface">
       <div className="page-heading centered">
@@ -476,7 +361,15 @@ function ModelSurface({ file, artifact }: { file?: InputFile; artifact?: Job["ar
   return <StlViewer url={url} />;
 }
 
-function DataVizSurface({ file, artifact }: { file?: InputFile; artifact?: Job["artifacts"][number] }) {
+function DataVizSurface({
+  file,
+  artifact,
+  showTiltPane,
+}: {
+  file?: InputFile;
+  artifact?: Job["artifacts"][number];
+  showTiltPane?: boolean;
+}) {
   if (artifact) {
     if (artifact.mediaType === "image/png") return <ImageArtifact artifact={artifact} />;
     return (
@@ -492,12 +385,17 @@ function DataVizSurface({ file, artifact }: { file?: InputFile; artifact?: Job["
     );
   }
   if (file?.kind === "tiff") {
-    return (
-      <>
-        <TiffViewer file={file} />
-        <TiffCompareSection file={file} />
-      </>
-    );
+    if (showTiltPane) {
+      return (
+        <div className="tiff-with-tilt-pane">
+          <div className="tiff-main-pane">
+            <TiffViewer file={file} />
+          </div>
+          <TiltCorrectionPane file={file} />
+        </div>
+      );
+    }
+    return <TiffViewer file={file} />;
   }
   if (file?.kind === "json") {
     return <DesignGraphViewer url={file.contentUrl} />;
@@ -554,7 +452,6 @@ function ReportSurface({ job }: { job: Job }) {
 
 export default function App() {
   const [job, setJob] = useState<Job | null>(null);
-  const [busy, setBusy] = useState(false);
   const [globalError, setGlobalError] = useState("");
   const [addingFiles, setAddingFiles] = useState(false);
 
@@ -571,6 +468,7 @@ export default function App() {
   const [chatTurns, setChatTurns] = useState<ChatTurn[]>([]);
   const [chatBusy, setChatBusy] = useState(false);
   const [statusEvents, setStatusEvents] = useState<{ id: string; text: string; at: number }[]>([]);
+  const [announcements, setAnnouncements] = useState<{ id: string; text: string; at: number }[]>([]);
 
   const mountSurface = useCallback((next: MountedSurface | null) => {
     setMountedRaw((current) => {
@@ -595,6 +493,25 @@ export default function App() {
     localStorage.removeItem("lattice-job");
   }, []);
 
+  // Boot straight into the workbench: create an empty job immediately
+  // instead of waiting on a separate upload landing page. The file-list
+  // surface's own "Add a file" affordance is how the first file gets in.
+  useEffect(() => {
+    if (job) return;
+    let cancelled = false;
+    api
+      .createJob()
+      .then((created) => {
+        if (!cancelled) setJob(created);
+      })
+      .catch((error) => {
+        if (!cancelled) setGlobalError(error instanceof Error ? error.message : "Could not start a new inspection");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [job]);
+
   useEffect(() => {
     if (!job || job.state !== "analyzing") return;
     const timer = window.setInterval(async () => {
@@ -617,7 +534,11 @@ export default function App() {
   // Real, honest "streaming" status: every polled state/stage change becomes
   // a narration line in the chat timeline. Not attributed to the model --
   // it's a direct reflection of observed backend state, visually distinct
-  // (see .status-event), never a fabricated commentary.
+  // (see .status-event), never a fabricated commentary. The one exception is
+  // the analyzing -> complete transition itself, which is important enough
+  // that it gets a prominent, impossible-to-miss announcement instead of a
+  // small pill (see .announcements below) -- still derived from real state,
+  // just phrased as the clear "you can ask now" message a user needs.
   const prevProgressRef = useRef<{ state: string; stage: string | null | undefined } | null>(null);
   useEffect(() => {
     if (!job) return;
@@ -627,7 +548,6 @@ export default function App() {
     if (prev) {
       if (job.state !== prev.state) {
         if (job.state === "analyzing") lines.push("Analysis started…");
-        else if (job.state === "complete") lines.push("Analysis complete.");
         else if (job.state === "failed") lines.push(`Analysis failed${job.error ? `: ${job.error}` : "."}`);
       }
       if (stage && stage !== prev.stage) lines.push(`${DEFECT_STAGE_LABELS[stage]}…`);
@@ -637,6 +557,20 @@ export default function App() {
         ...current,
         ...lines.map((text, index) => ({ id: `${Date.now()}-${index}`, text, at: Date.now() + index })),
       ]);
+    }
+    if (prev && prev.state !== "complete" && job.state === "complete") {
+      let text: string;
+      if (job.defects?.status === "complete") {
+        text = 'Analysis complete — you can now ask about defects, e.g. "where are the defects concentrated?"';
+      } else if (job.defects?.status === "failed") {
+        text = `Analysis complete, but defect detection failed${
+          job.defects.error ? `: ${job.defects.error}` : "."
+        } You can still view the model or report.`;
+      } else {
+        text =
+          "Analysis complete — no design JSON was provided, so defect detection was skipped. You can still view the model or report.";
+      }
+      setAnnouncements((current) => [...current, { id: `complete-${Date.now()}`, text, at: Date.now() + 1 }]);
     }
     prevProgressRef.current = { state: job.state, stage };
   }, [job]);
@@ -656,21 +590,6 @@ export default function App() {
       .then(setClassification)
       .catch(() => setClassificationError("The defect classification could not be loaded."));
   }, [job?.defects?.dataUrl]);
-
-  const upload = async (files: File[]) => {
-    if (!files.length) return;
-    setBusy(true);
-    setGlobalError("");
-    try {
-      const created = await api.createJob();
-      const uploaded = await api.upload(created.id, files);
-      setJob(uploaded);
-    } catch (error) {
-      setGlobalError(error instanceof Error ? error.message : "Upload failed");
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const analyze = async () => {
     if (!job) return;
@@ -700,6 +619,7 @@ export default function App() {
     setJob(null);
     setChatTurns([]);
     setStatusEvents([]);
+    setAnnouncements([]);
     setClassification(null);
     setSelectedStrutIds(new Set());
     mountSurface(null);
@@ -741,9 +661,10 @@ export default function App() {
     const entries: TimelineEntry[] = [
       ...chatTurns.map((turn) => ({ kind: "turn" as const, at: new Date(turn.timestamp).getTime(), turn })),
       ...statusEvents.map((event) => ({ kind: "status" as const, at: event.at, id: event.id, text: event.text })),
+      ...announcements.map((event) => ({ kind: "announcement" as const, at: event.at, id: event.id, text: event.text })),
     ];
     return entries.sort((a, b) => a.at - b.at);
-  }, [chatTurns, statusEvents]);
+  }, [chatTurns, statusEvents, announcements]);
 
   const mountedFile = mounted?.props.file_id ? job?.files.find((f) => f.id === mounted.props.file_id) : undefined;
   const mountedArtifact = mounted?.props.artifact_id
@@ -782,8 +703,8 @@ export default function App() {
       )}
 
       {!job ? (
-        <main>
-          <UploadScreen onComplete={upload} busy={busy} />
+        <main className="workbench-loading">
+          <LoaderCircle className="spin" size={22} />
         </main>
       ) : (
         <main className="workbench">
@@ -807,7 +728,9 @@ export default function App() {
                 <FileListSurface job={job} onPreview={previewFile} onAnalyze={analyze} onAddFiles={addFiles} addingFiles={addingFiles} />
               )}
               {mounted?.component === "ModelViewer" && <ModelSurface file={mountedFile} artifact={mountedArtifact} />}
-              {mounted?.component === "DataViz" && <DataVizSurface file={mountedFile} artifact={mountedArtifact} />}
+              {mounted?.component === "DataViz" && (
+                <DataVizSurface file={mountedFile} artifact={mountedArtifact} showTiltPane={mounted.props.show_tilt_pane} />
+              )}
               {mounted?.component === "DefectView" && (
                 <DefectSurface
                   job={job}

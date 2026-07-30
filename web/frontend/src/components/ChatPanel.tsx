@@ -100,12 +100,27 @@ export function ChatPanel({
             </p>
           </div>
         )}
-        {timeline.map((entry) =>
-          entry.kind === "status" ? (
-            <div className="status-event" key={entry.id}>
-              {entry.text}
-            </div>
-          ) : (
+        {timeline.map((entry) => {
+          if (entry.kind === "status") {
+            return (
+              <div className="status-event" key={entry.id}>
+                {entry.text}
+              </div>
+            );
+          }
+          if (entry.kind === "announcement") {
+            // Same visual weight as a real assistant reply (per the "the
+            // agent must post a clear completion message" requirement) --
+            // still frontend-synthesized from real polled state, not a new
+            // model call, but deliberately not distinguished from a turn
+            // visually so the user reliably notices it.
+            return (
+              <div className="chat-bubble assistant announcement" key={entry.id}>
+                <p>{entry.text}</p>
+              </div>
+            );
+          }
+          return (
             <div className="chat-turn" key={entry.at}>
               <div className="chat-bubble user">{entry.turn.user_message}</div>
               <div className="chat-bubble assistant">
@@ -113,8 +128,8 @@ export function ChatPanel({
                 <ReasoningTrace turn={entry.turn} />
               </div>
             </div>
-          ),
-        )}
+          );
+        })}
         {busy && (
           <div className="chat-bubble assistant pending">
             <LoaderCircle className="spin" size={14} /> Thinking…

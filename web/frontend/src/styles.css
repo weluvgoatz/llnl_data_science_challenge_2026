@@ -158,18 +158,21 @@ main { min-height: calc(100vh - 224px); }
 .slice-control label { font-size: 11px; white-space: nowrap; color: #bdcac5; }
 .slice-control label strong { color: var(--lime); }
 .slice-control input { width: 100%; accent-color: var(--lime); }
-.tiff-compare { margin-top: 34px; }
-.tiff-compare .page-heading { margin-bottom: 18px; }
-.tiff-compare .page-heading h2 { font: 700 clamp(22px, 2.6vw, 30px)/1.15 "Manrope"; letter-spacing: -.03em; margin: 9px 0 8px; color: var(--ink); }
-.tiff-compare .page-heading p { color: var(--muted); line-height: 1.6; margin: 0; }
-.tiff-compare-grid { display: flex; border: 1px solid var(--line); border-radius: 0 0 10px 10px; overflow: hidden; height: 480px; box-shadow: 0 18px 50px #1c35300b; }
-.tiff-compare-pane { flex: 1 1 50%; min-width: 0; display: flex; flex-direction: column; background: #132b2a; }
-.tiff-compare-pane:first-child { border-right: 1px solid #ffffff1a; }
-.tiff-compare-pane .slice-pane-label { background: #0e2221; padding: 8px 0; }
-.tiff-compare-pane .zoomable-image { flex: 1 1 auto; }
-.tiff-compare-empty { flex: 1 1 auto; display: grid; place-items: center; color: #9db3ad; font-size: 12px; padding: 24px; text-align: center; line-height: 1.6; }
-.tiff-compare .tilt-banner { border-radius: 10px 10px 0 0; }
-.tiff-compare .slice-control { border-radius: 0 0 10px 10px; }
+/* Tilt correction side pane (Fix 2): the main TIFF view stays untouched;
+   this only appears next to it when explicitly requested. */
+.tiff-with-tilt-pane { display: flex; gap: 16px; height: 493px; }
+.tiff-main-pane { flex: 1 1 60%; min-width: 0; }
+.tiff-main-pane .tiff-viewer { height: 100%; }
+.tilt-pane {
+  flex: 1 1 40%; min-width: 0; display: flex; flex-direction: column;
+  border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #132b2a;
+}
+.tilt-pane-header { flex: 0 0 auto; padding: 12px 16px; background: var(--paper); }
+.tilt-pane .tilt-banner { border-radius: 0; }
+.tilt-pane-image { flex: 1 1 auto; min-height: 0; }
+.tilt-pane-image .zoomable-image { height: 100%; }
+.tilt-pane-empty { flex: 1 1 auto; display: grid; place-items: center; color: #9db3ad; font-size: 12px; padding: 24px; text-align: center; line-height: 1.6; }
+.tilt-pane .slice-control { flex: 0 0 auto; }
 
 .zoomable-image { position: relative; overflow: hidden; width: 100%; height: 100%; cursor: zoom-in; touch-action: none; }
 .zoomable-image.zoomed { cursor: grab; }
@@ -247,8 +250,8 @@ main { min-height: calc(100vh - 224px); }
   .defect-viewer-shell { height: 430px; }
   .artifact-image { height: 250px; }
   .viewer-shell, .tiff-viewer { height: 430px; }
-  .tiff-compare-grid { flex-direction: column; height: 620px; }
-  .tiff-compare-pane:first-child { border-right: 0; border-bottom: 1px solid #ffffff1a; }
+  .tiff-with-tilt-pane { flex-direction: column; height: auto; }
+  .tiff-main-pane .tiff-viewer, .tilt-pane { height: 430px; }
   .workbench { flex-direction: column; height: auto; }
   .chat-pane { flex: 0 0 420px; border-left: 0; border-top: 1px solid var(--line); }
 }
@@ -256,6 +259,7 @@ main { min-height: calc(100vh - 224px); }
 /* --- Chat + canvas workbench --- */
 
 .workbench { display: flex; flex: 1 1 auto; min-height: 0; height: calc(100vh - 64px); }
+.workbench-loading { display: flex; align-items: center; justify-content: center; height: calc(100vh - 64px); color: var(--muted); }
 .canvas-pane { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; border-right: 1px solid var(--line); }
 .surface-bar {
   flex: 0 0 auto; display: flex; align-items: center; gap: 14px;
@@ -294,6 +298,8 @@ main { min-height: calc(100vh - 224px); }
 .chat-bubble.user { align-self: flex-end; background: var(--ink); color: white; }
 .chat-bubble.assistant { align-self: flex-start; background: var(--teal-soft); color: var(--ink); width: 94%; }
 .chat-bubble.pending { display: flex; align-items: center; gap: 8px; color: var(--muted); background: none; padding-left: 0; }
+.chat-bubble.announcement { align-self: center; width: 94%; border: 1px solid var(--lime-dark); background: #f4f9e4; }
+.chat-bubble.announcement p { font-weight: 600; }
 .chat-bubble p { margin: 0; white-space: pre-wrap; }
 .chat-composer { flex: 0 0 auto; display: flex; gap: 8px; padding: 15px; border-top: 1px solid var(--line); }
 .chat-composer textarea {
