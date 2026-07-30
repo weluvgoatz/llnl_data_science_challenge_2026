@@ -13,7 +13,7 @@ from __future__ import annotations
 import functools
 from typing import Any, Callable
 
-from .. import agent_tools, plot_tools
+from .. import agent_tools, plot_tools, report_tools
 from .runtime import run_tool_loop
 
 VERSION_ID_PROPERTY = {
@@ -97,15 +97,21 @@ DETECTION_TOOLS = [
 # report_agent -- reads result metadata, explains, never mutates.
 # ---------------------------------------------------------------------------
 
-REPORT_SYSTEM_PROMPT = """You are report_agent for Lattice Lens. You read the CURRENT job's already-computed result metadata and explain findings in plain language -- you never modify the pipeline and never invent a number.
+REPORT_SYSTEM_PROMPT = """You are report_agent for Lattice Lens. You read the CURRENT job's already-computed result metadata, explain findings in plain language, and can generate the full Lattice NDE report document -- you never modify the pipeline and never invent a number.
 
-Your tools:
+Explaining tools (answer a question in chat, don't write a file):
 - explain_strut(strut_id, version_id): the verdict and the exact measured evidence for one designed strut -- this is how you answer "why was this strut classified as X".
 - defect_hotspots(top_n, version_id): the design's own unit cells ranked by defect rate, with real grid positions and centroids -- this is how you answer "where are defects concentrated".
 - compare_thickness(strut_id, verdict, version_id): measured as-built radius vs. the pipeline's nominal radius and the design file's own nominal thickness value, for one strut or aggregated over a verdict category -- this is how you answer "is the printed thickness what the design specified".
 - summarize_defects(version_id): overall counts/percentages and which classification versions exist.
 
-Every tool result carries a "source" field naming exactly what pipeline artifact it came from; ground your explanation in it. If a tool returns a "note" field (e.g. compare_thickness's caveat that the pipeline's nominal radius and the design file's own nominal thickness are two different figures that don't have to agree, or the known measurement artifact near thick junctions), pass that nuance on -- do not smooth it into one confident number, and do not silently pick one figure as "the" design spec when the tool told you there are two. If evidence is genuinely ambiguous, say so plainly instead of guessing."""
+Every tool result carries a "source" field naming exactly what pipeline artifact it came from; ground your explanation in it. If a tool returns a "note" field (e.g. compare_thickness's caveat that the pipeline's nominal radius and the design file's own nominal thickness are two different figures that don't have to agree, or the known measurement artifact near thick junctions), pass that nuance on -- do not smooth it into one confident number, and do not silently pick one figure as "the" design spec when the tool told you there are two. If evidence is genuinely ambiguous, say so plainly instead of guessing.
+
+Report-generation tools (use when asked for "the report" / "the NDE report" -- a real Markdown + PDF document, not a chat answer). This is a two-step, ALWAYS-both-steps flow:
+1. generate_report_data(): computes every statistic the report needs from the CURRENT active classification (Input Metadata & Statistics, Output Statistics & Plots) and renders the plots. Returns the real numbers -- condition rating, defect counts, which spatial regions/exterior faces are most concentrated, dominant defect type.
+2. finalize_report(situational_analysis): you write `situational_analysis` yourself -- this becomes the report's Section 3 ("Situational Analysis"). Interpret the numbers generate_report_data just returned: what the defect pattern implies about the print process (e.g. one exterior face or spatial region carrying most of the missing/disconnected defects points at a build-orientation or support/recoater issue on that side; a scattered, low-magnitude pattern instead points at general process variability), plausible causes, and concrete production-pipeline improvements to consider. Write this as real engineering interpretation grounded ONLY in the numbers you were just given -- never state a count, percentage, or region name that generate_report_data didn't return. finalize_report then assembles and writes the final report and returns its Markdown path and PDF artifact.
+
+Never call finalize_report without having just called generate_report_data in the same turn (its numbers are what Section 3 must be grounded in, and finalize_report reads the data generate_report_data just cached -- calling it stale or out of order will fail). Report generation requires a completed initial analysis, same as the other tools here."""
 
 REPORT_TOOLS = [
     {
@@ -146,6 +152,25 @@ REPORT_TOOLS = [
         "name": "summarize_defects",
         "description": "Per-category counts/percentages for a classification version, plus which versions exist.",
         "input_schema": {"type": "object", "properties": {"version_id": VERSION_ID_PROPERTY}, "required": []},
+    },
+    {
+        "name": "generate_report_data",
+        "description": "Step 1 of report generation: compute the current job's report statistics (input metadata, defect distribution, spatial/exterior-face concentration) and render the report's plots. Returns the real numbers to ground Section 3 in.",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "finalize_report",
+        "description": "Step 2 of report generation: write the Section 3 situational analysis (manufacturing-process interpretation, grounded in generate_report_data's numbers) and assemble the final Markdown + PDF report. Call generate_report_data first, in the same turn.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "situational_analysis": {
+                    "type": "string",
+                    "description": "Your written interpretation of the defect pattern's implications for the print process, likely causes, and production-pipeline improvements -- grounded only in generate_report_data's numbers.",
+                },
+            },
+            "required": ["situational_analysis"],
+        },
     },
 ]
 
@@ -250,6 +275,8 @@ def _report_dispatch(job_id: str) -> dict[str, Callable[..., Any]]:
         "defect_hotspots": _bind(job_id, agent_tools.defect_hotspots),
         "compare_thickness": _bind(job_id, agent_tools.compare_thickness),
         "summarize_defects": _bind(job_id, agent_tools.summarize_defects),
+        "generate_report_data": _bind(job_id, report_tools.generate_report_data),
+        "finalize_report": _bind(job_id, report_tools.finalize_report),
     }
 
 

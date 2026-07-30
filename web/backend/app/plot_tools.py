@@ -122,6 +122,46 @@ def plot_hotspots_map(job_id: str, top_n: int = 15, version_id: int | None = Non
     }
 
 
+def plot_face_defect_rates(job_id: str, face_stats: list[dict[str, Any]]) -> dict:
+    """Bar chart of defect rate per exterior face of the printed object's
+    bounding cube. Unlike the other plot_* functions here, the numbers come
+    from the caller (report_tools.generate_report_data, via the
+    reconstructed defect-results reporting agent's cube-region analysis)
+    rather than being recomputed from the classification JSON directly --
+    this function only renders what it's given, the same "no invented
+    numbers" rule the rest of this module follows. Each entry in
+    face_stats needs "face" and "defect_pct" (0-100); "dominant" is
+    optional and used as a bar label if present.
+    """
+    if not face_stats:
+        raise tools.ToolError("No face statistics to plot.")
+    ordered = sorted(face_stats, key=lambda f: f["defect_pct"], reverse=True)
+    labels = [f["face"] for f in ordered]
+    values = [f["defect_pct"] for f in ordered]
+
+    fig, ax = plt.subplots(figsize=(7, 4.5), dpi=130)
+    bars = ax.bar(labels, values, color="#FF8C1E")
+    for bar, entry in zip(bars, ordered):
+        text = f"{entry['defect_pct']:.1f}%"
+        if entry.get("dominant"):
+            text += f"\n{entry['dominant']}"
+        ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height(), text, ha="center", va="bottom", fontsize=8)
+    ax.set_ylabel("Defect rate (%)")
+    ax.set_title("Defect rate by exterior face")
+    fig.tight_layout()
+
+    path = _plots_dir(job_id) / "face_defect_rates.png"
+    fig.savefig(path, facecolor="white")
+    plt.close(fig)
+    artifact = _register_artifact(job_id, path, "Defect rate by exterior face")
+    return {
+        "source": "cube-region analysis (defect_results_reporting_agent_v3.analyze_cube_regions)",
+        "path": str(path),
+        "artifact": artifact,
+        "face_stats": ordered,
+    }
+
+
 def plot_thickness_distribution(job_id: str, verdict: str | None = None, version_id: int | None = None) -> dict:
     """Histogram of measured as-built radius, with the nominal radius marked."""
     job = load_job(job_id)
