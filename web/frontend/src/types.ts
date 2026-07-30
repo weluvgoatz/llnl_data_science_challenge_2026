@@ -42,12 +42,8 @@ export interface Report {
 }
 
 export type DefectStage =
-  | "segmenting"
-  | "cleaning"
-  | "skeletonizing"
-  | "building_graph"
+  | "detecting"
   | "classifying"
-  | "bend_detail"
   | "complete";
 
 export interface DefectVersion {

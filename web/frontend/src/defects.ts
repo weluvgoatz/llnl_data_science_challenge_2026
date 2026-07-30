@@ -20,11 +20,11 @@ export const VERDICT_LABELS: Record<StrutVerdict, string> = {
   disconnected: "Disconnected",
 };
 
-// Matches the decision rules in INTEGRATION.md / describe_thresholds().
+// Matches the v2 decision rules in analysis/defect_detection/v2/INTEGRATION.md.
 export const VERDICT_DESCRIPTIONS: Record<StrutVerdict, string> = {
   present: "Healthy strut — none of the defect conditions below apply.",
-  missing: "Metal along the strut is under 15% of its length — essentially absent.",
-  disconnected: "One continuous gap spans at least 25% of the strut's length.",
-  thin: "Strut density is a robust statistical low outlier versus the rest of the specimen.",
-  bent: "Peak bow off the strut's own axis exceeds one strut radius.",
+  missing: "No strut was built between the two nodes.",
+  disconnected: "A strut was built but is severed — no connected piece of metal reaches from node to node.",
+  thin: "Some sustained section is thinner than median − 3·MAD of this scan's measured strut diameters.",
+  bent: "The strut's centreline bows more than one strut radius off the straight line between its own ends.",
 };

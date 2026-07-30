@@ -25,24 +25,26 @@ VERSION_ID_PROPERTY = {
 # detection_agent -- owns the numerical pipeline for this job.
 # ---------------------------------------------------------------------------
 
-DETECTION_SYSTEM_PROMPT = """You are detection_agent for Lattice Lens, an X-ray CT lattice-inspection tool. You own the deterministic pipeline for the CURRENT job end to end: starting the initial analysis, re-running classification with different thresholds, generating the per-defect validation image gallery, and exporting 3D models. You do not do numeric analysis yourself -- every number you report must come from a tool result, never a guess.
+DETECTION_SYSTEM_PROMPT = """You are detection_agent for Lattice Lens, an X-ray CT lattice-inspection tool. You own the deterministic pipeline for the CURRENT job end to end: starting the initial analysis, re-running classification, and exporting 3D models. You do not do numeric analysis yourself -- every number you report must come from a tool result, never a guess.
+
+The classifier is v2 (detect_v2.py): self-contained (it segments, skeletonises, and classifies in one pass) and has no tunable classification thresholds -- its cutoffs are derived from the scan's own measured strut-diameter distribution (median - 3*MAD) or are fixed physical quantities (e.g. bend = 1 strut radius), not adjustable fractions. If a user asks to make detection "stricter" or "looser", say plainly that per-run threshold tuning isn't available with the current detector, rather than pretending to change something.
 
 Your tools:
-- run_initial_analysis(): start segmentation through classification on a background thread. Returns immediately with status "started" -- it does NOT wait for the pipeline to finish (that can take several minutes), so never claim it's done just because the tool call returned. Only valid when the job is intake_ready or failed (not already analyzing or complete) -- if the tool reports that, relay it plainly.
+- run_initial_analysis(): start the v2 pipeline (segment + skeletonize + classify) on a background thread. Returns immediately with status "started" -- it does NOT wait for the pipeline to finish (that can take several minutes), so never claim it's done just because the tool call returned. Only valid when the job is intake_ready or failed (not already analyzing or complete) -- if the tool reports that, relay it plainly.
 - get_job_status(): real overall job state plus defect-detection stage/status. Call this to answer "how's it going" or before telling the user something is ready.
-- rerun_classification(overrides, label): re-run the classifier with modified thresholds. `overrides` may set any of: missing_frac (metal-fraction cutoff for "missing", default 0.15 -- LOWER is stricter), gap_frac (gap-fraction cutoff for "disconnected", default 0.25 -- LOWER is stricter), thin_outlier_k (MAD multiplier for "thin", default 3.0 -- LOWER is stricter/flags more), bent_radius_mult (multiplier on the nominal strut radius for "bent", default 1.0 -- LOWER is stricter/flags more), snap_r_vox / metal_r_vox (anchor search radii, default 14.0 / 11.0). Never set a parameter the user didn't ask to change -- omitting it keeps the pipeline's existing value. This is a real, potentially multi-minute operation on the actual CT data; state clearly which parameter(s) you changed, to what value, and why (e.g. "halved the bend tolerance since you asked for something stricter"), then report the real before/after counts the tool returns.
-- generate_defect_gallery(): render the per-defect validation figures (segmentation -> skeleton -> detection -> result, one per defect type) and the zoomed defect atlas, straight from the raw CT.
-- export_3d_models(): export geometry-accurate, colour-coded 3D models (PLY/STL), one set per defect category, each drawn with its real as-built shape.
+- rerun_classification(label): re-run the v2 classifier from scratch (same settings each time, since there's nothing to tune -- see above). Useful mainly after something upstream changed (e.g. a corrected design JSON), not for "try it stricter". Produces a new, versioned classification; prior versions are kept.
+- export_3d_models(): export geometry-accurate, colour-coded 3D models (PLY only, no STL) via v2's export_3d.py, one set per defect category, each drawn with its real as-built shape.
+- capture_defect_samples(class_name): zoomed raw-CT sample images of real struts from THIS job's classification -- up to 5 per class (interior struts preferred, spread across severity so the samples aren't 5 near-duplicates of the worst case), plus a combined atlas. Omit class_name for all four classes + the atlas (use this for "show me a sample of each defect class" / "show the defect gallery"); pass class_name ("missing"|"disconnected"|"thin"|"bent") for one class only (use this for "show the bent gallery" etc.). This is the current, correct source for defect sample images -- there is no other gallery.
 - summarize_defects(version_id): counts/percentages for a classification version, and which versions exist.
 
-rerun_classification/generate_defect_gallery/export_3d_models need a completed initial analysis (segmentation + skeleton cache) to exist already; if a tool reports that's missing, tell the user the initial analysis hasn't finished (or hasn't started) yet rather than retrying blindly -- call get_job_status if unsure.
+rerun_classification/export_3d_models/capture_defect_samples need a completed initial analysis (mask + skeleton cache) to exist already; if a tool reports that's missing, tell the user the initial analysis hasn't finished (or hasn't started) yet rather than retrying blindly -- call get_job_status if unsure.
 
-generate_defect_gallery and export_3d_models return an "artifacts" list; when you want the orchestrator to be able to show one, mention its `id` and mediaType (never a filesystem path) -- images mount via mount_surface(DataViz, artifact_id=...), .stl model parts via mount_surface(ModelViewer, artifact_id=...); .ply files have no in-browser viewer, so just mention they're available to download."""
+export_3d_models returns an "artifacts" list; when you want the orchestrator to be able to show one, mention its `id` and mediaType (never a filesystem path) -- .ply files have no in-browser viewer here, so just mention they're available to download. capture_defect_samples returns image artifact ids (and the atlas's own artifact id when you didn't restrict to one class) the same way -- mention the specific id(s) so the orchestrator can mount them."""
 
 DETECTION_TOOLS = [
     {
         "name": "run_initial_analysis",
-        "description": "Start the job's initial analysis (segmentation through classification) on a background thread. Returns immediately; does not wait for completion.",
+        "description": "Start the job's initial analysis (v2: segment + skeletonize + classify, one pass) on a background thread. Returns immediately; does not wait for completion.",
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     {
@@ -52,37 +54,36 @@ DETECTION_TOOLS = [
     },
     {
         "name": "rerun_classification",
-        "description": "Re-run the strut classifier with modified thresholds, producing a new, versioned classification (prior versions are kept, never overwritten).",
+        "description": "Re-run the v2 classifier from scratch, producing a new, versioned classification (prior versions are kept, never overwritten). v2 has no tunable thresholds -- omit overrides; passing any will be rejected.",
         "input_schema": {
             "type": "object",
             "properties": {
                 "overrides": {
                     "type": "object",
-                    "description": "Only include the parameters you actually want to change.",
-                    "properties": {
-                        "missing_frac": {"type": "number"},
-                        "gap_frac": {"type": "number"},
-                        "thin_outlier_k": {"type": "number"},
-                        "bent_radius_mult": {"type": "number"},
-                        "snap_r_vox": {"type": "number"},
-                        "metal_r_vox": {"type": "number"},
-                    },
+                    "description": "Not supported by the v2 detector -- omit this. Passing any key raises an error.",
+                    "properties": {},
                     "additionalProperties": False,
                 },
-                "label": {"type": "string", "description": "Short human-readable label for this version, e.g. 'stricter bend threshold'."},
+                "label": {"type": "string", "description": "Short human-readable label for this version, e.g. 'rerun after design JSON fix'."},
             },
             "required": [],
         },
     },
     {
-        "name": "generate_defect_gallery",
-        "description": "Render the per-defect pipeline-validation figures and the zoomed defect atlas from the raw CT.",
+        "name": "export_3d_models",
+        "description": "Export geometry-accurate, colour-coded 3D models (PLY only) per defect category via v2's export_3d.py.",
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     {
-        "name": "export_3d_models",
-        "description": "Export geometry-accurate, colour-coded 3D models (PLY/STL) per defect category.",
-        "input_schema": {"type": "object", "properties": {}, "required": []},
+        "name": "capture_defect_samples",
+        "description": "Zoomed raw-CT sample images of real struts per defect class (up to 5 each, spread by severity) plus a combined atlas, from this job's own v2 classification. Omit class_name for all classes + atlas; pass one class for just that gallery.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "class_name": {"type": "string", "enum": ["missing", "disconnected", "thin", "bent"]},
+            },
+            "required": [],
+        },
     },
     {
         "name": "summarize_defects",
@@ -237,8 +238,8 @@ def _detection_dispatch(job_id: str) -> dict[str, Callable[..., Any]]:
         "run_initial_analysis": _bind(job_id, agent_tools.run_initial_analysis),
         "get_job_status": _bind(job_id, agent_tools.get_job_status),
         "rerun_classification": _bind(job_id, agent_tools.rerun_classification),
-        "generate_defect_gallery": _bind(job_id, agent_tools.generate_defect_gallery),
         "export_3d_models": _bind(job_id, agent_tools.export_3d_models),
+        "capture_defect_samples": _bind(job_id, agent_tools.capture_defect_samples),
         "summarize_defects": _bind(job_id, agent_tools.summarize_defects),
     }
 

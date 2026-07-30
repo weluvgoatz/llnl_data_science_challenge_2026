@@ -76,15 +76,25 @@ export function ChatPanel({
   disabledReason?: string;
 }) {
   const [draft, setDraft] = useState("");
+  // Optimistic: show the user's own message the instant they send it,
+  // rather than waiting for the full round trip to come back as a real
+  // ChatTurn. Cleared once the request settles (busy -> false), by which
+  // point the real turn has landed in `timeline` and supersedes it.
+  const [pending, setPending] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [timeline.length, busy]);
+  }, [timeline.length, busy, pending]);
+
+  useEffect(() => {
+    if (!busy) setPending(null);
+  }, [busy]);
 
   const submit = () => {
     const message = draft.trim();
     if (!message || busy || disabled) return;
+    setPending(message);
     onSend(message);
     setDraft("");
   };
@@ -95,8 +105,24 @@ export function ChatPanel({
         {timeline.length === 0 && (
           <div className="chat-empty">
             <p>
-              Ask me to show something &mdash; e.g. &ldquo;show me the model&rdquo; or &ldquo;run the
-              analysis&rdquo; &mdash; or once analysis has run, &ldquo;where are the defects concentrated?&rdquo;
+              Lattice Lens compares an additively-manufactured lattice part&rsquo;s intended design against its CT
+              scan to find missing or defective struts.
+            </p>
+            <ul className="chat-empty-files">
+              <li>
+                <strong>STL</strong> &mdash; intended CAD geometry
+              </li>
+              <li>
+                <strong>TIFF</strong> &mdash; CT scan of the printed part
+              </li>
+              <li>
+                <strong>JSON</strong> &mdash; lattice graph linking design to individual struts
+              </li>
+            </ul>
+            <p>
+              Following upload, query the system on your structure&rsquo;s geometry, scan, and inspection results
+              &mdash; &ldquo;show the model,&rdquo; &ldquo;show the TIFF,&rdquo; &ldquo;run the analysis,&rdquo; and
+              ask about defects once it&rsquo;s done.
             </p>
           </div>
         )}
@@ -130,6 +156,7 @@ export function ChatPanel({
             </div>
           );
         })}
+        {pending && <div className="chat-bubble user">{pending}</div>}
         {busy && (
           <div className="chat-bubble assistant pending">
             <LoaderCircle className="spin" size={14} /> Thinking…

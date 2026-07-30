@@ -34,12 +34,8 @@ import type {
 } from "./types";
 
 const DEFECT_STAGE_LABELS: Record<DefectStage, string> = {
-  segmenting: "segmenting the scan",
-  cleaning: "cleaning the segmentation",
-  skeletonizing: "skeletonizing the lattice",
-  building_graph: "building the as-built graph",
-  classifying: "classifying every strut",
-  bend_detail: "measuring strut bow",
+  detecting: "segmenting, skeletonizing, and classifying the scan",
+  classifying: "writing classification results",
   complete: "finishing up",
 };
 
@@ -550,7 +546,11 @@ export default function App() {
         if (job.state === "analyzing") lines.push("Analysis started…");
         else if (job.state === "failed") lines.push(`Analysis failed${job.error ? `: ${job.error}` : "."}`);
       }
-      if (stage && stage !== prev.stage) lines.push(`${DEFECT_STAGE_LABELS[stage]}…`);
+      // Fall back to the raw stage name if it's not one DEFECT_STAGE_LABELS
+      // knows about (e.g. a backend process running older code than this
+      // frontend expects) -- real backend data either way, never the
+      // literal string "undefined".
+      if (stage && stage !== prev.stage) lines.push(`${DEFECT_STAGE_LABELS[stage] ?? stage}…`);
     }
     if (lines.length) {
       setStatusEvents((current) => [

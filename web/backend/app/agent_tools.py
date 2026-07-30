@@ -12,7 +12,6 @@ from __future__ import annotations
 import json
 import shutil
 import statistics
-import threading
 from pathlib import Path
 from typing import Any
 
@@ -79,7 +78,7 @@ def explain_strut(job_id: str, strut_id: int, version_id: int | None = None) -> 
     if strut is None:
         raise ToolError(f"No strut with id {strut_id} in this classification.")
     return {
-        "source": "classification JSON produced by unified_defects_accurate.py",
+        "source": "classification JSON produced by detect_v2.py",
         "strut": strut,
     }
 
@@ -224,24 +223,34 @@ def rerun_classification(
     overrides: dict[str, float] | None = None,
     label: str | None = None,
 ) -> dict:
-    """Re-run unified_defects_accurate.py with modified thresholds, versioned.
+    """Re-run the v2 detector (detect_v2.py), versioned.
+
+    The v2 detector has no per-parameter tuning knobs (see
+    defect_detection.TUNABLE_PARAMS) -- its thresholds are derived from the
+    scan's own measured diameter distribution or are fixed physical
+    quantities, not simple overridable fractions like v1's. Any `overrides`
+    key is rejected below; call with no overrides to re-run with the same
+    (only) settings, e.g. after re-uploading a corrected design JSON.
 
     Never overwrites a prior run: writes a new classification_v<n>.json,
     appends it to job["defects"]["versions"], and makes it the active
     version -- every earlier version stays on disk and in the version list.
-    Requires the job's initial analysis (segmentation + skeleton cache) to
-    have already completed; this only redoes the classification stage, which
-    is the stage these thresholds actually govern.
+    Requires the job's initial analysis (mask + skeleton cache) to have
+    already completed.
 
-    This does real, potentially multi-minute work (re-registers the design,
-    re-anchors every node, re-classifies every strut) -- callers running this
-    from a request handler should do so on a background thread and poll
-    job["defects"], the same way the initial analysis run already works.
+    This does real, potentially multi-minute work (re-segments if the cache
+    was cleared, rebuilds the as-built graph, re-classifies every strut) --
+    callers running this from a request handler should do so on a background
+    thread and poll job["defects"], the same way the initial analysis run
+    already works.
     """
     overrides = overrides or {}
     bad = set(overrides) - ALLOWED_OVERRIDES
     if bad:
-        raise ToolError(f"Unknown parameter(s): {sorted(bad)}. Allowed: {sorted(ALLOWED_OVERRIDES)}")
+        raise ToolError(
+            f"Unknown parameter(s): {sorted(bad)}. The v2 detector has no tunable "
+            "classification thresholds -- call rerun_classification with no overrides."
+        )
 
     job = load_job(job_id)
     defects = job.get("defects") or {}
@@ -250,36 +259,32 @@ def rerun_classification(
         raise ToolError("No completed initial analysis to rerun classification against.")
 
     base, stk, design_json_abs = dd.resolve_specimen_paths(job)
-    mask = stk / f"{base}_segmented_clean.tif"
-    skelc = stk / f"{base}_segmented_clean.skelcoords.npz"
+    mask = stk / f"{base}{dd.MASK_SUFFIX}"
+    skelc = stk / f"{base}{dd.SKELC_SUFFIX}"
     if not mask.is_file() or not skelc.is_file():
         raise ToolError("Segmentation/skeleton cache missing -- run the initial analysis first.")
 
-    params = dict(dd.DEFAULT_PARAMS)
-    params.update(overrides)
+    env = dd.build_env(stk, base, design_json_abs)
+    with dd.V2_LOCK:
+        dd.run_script("detect_v2.py", env, root=dd.V2_ROOT)
+        v2_out = dd.V2_ROOT / "strut_classification_v2.json"
+        if not v2_out.is_file():
+            raise ToolError("Rerun finished without producing a classification JSON.")
+        v2_payload = json.loads(v2_out.read_text(encoding="utf-8"))
 
-    env = dd.build_env(stk, base, design_json_abs, overrides)
-    dd.run_script("unified_defects_accurate.py", env)
-    try:
-        dd.run_script("bent_struts.py", env)
-    except Exception:
-        pass  # supplementary bow/tortuosity detail; classification already succeeded
-
-    classified = stk / f"{base}_unified_defects_accurate.json"
-    if not classified.is_file():
-        raise ToolError("Rerun finished without producing a classification JSON.")
-    payload = json.loads(classified.read_text(encoding="utf-8"))
+    design = load_design(job)
+    payload = dd.v2_to_v1_schema(v2_payload, design)
 
     root = job_dir(job_id)
     next_id = max(v["id"] for v in versions) + 1
     dest_relative = f"defects/classification_v{next_id}.json"
-    (root / dest_relative).write_bytes(classified.read_bytes())
+    (root / dest_relative).write_text(json.dumps(payload), encoding="utf-8")
 
     version_entry = {
         "id": next_id,
-        "label": label or (f"rerun with {overrides}" if overrides else "rerun (defaults)"),
+        "label": label or "rerun (v2 detector, same settings)",
         "path": dest_relative,
-        "params": params,
+        "params": dict(dd.DEFAULT_PARAMS),
         "counts": payload["meta"]["counts"],
         "n": payload["meta"]["n"],
         "createdAt": now(),
@@ -297,25 +302,15 @@ def rerun_classification(
 
     previous = versions[-2] if len(versions) > 1 else None
     return {
-        "source": "unified_defects_accurate.py rerun",
+        "source": "detect_v2.py rerun",
         "version": version_entry,
         "previous_counts": previous["counts"] if previous else None,
     }
 
 
-# viz_defect_atlas.py, viz_pipeline_perdefect.py, and export_realistic_models.py
-# (unlike every classification-stage script) write to a FIXED, shared path
-# under analysis/defect_detection/ rather than a per-job LATTICE_STK path --
-# they were built for one CLI/Codex user at a time. Until they're
-# parameterized like the rest of the pipeline, this lock serializes calls to
-# them so two jobs' galleries/models can never interleave and corrupt each
-# other; only one such job runs at a time across the whole backend.
-_SHARED_OUTPUT_LOCK = threading.Lock()
-
-
 def _require_segmented(job: dict) -> tuple[str, Path, str]:
     base, stk, design_json_abs = dd.resolve_specimen_paths(job)
-    mask = stk / f"{base}_segmented_clean.tif"
+    mask = stk / f"{base}{dd.MASK_SUFFIX}"
     if not mask.is_file():
         raise ToolError("Segmentation missing -- run the initial analysis first.")
     return base, stk, design_json_abs
@@ -344,68 +339,136 @@ def _move_and_register(job_id: str, src: Path, dest_subdir: str, caption: str, m
     return artifact
 
 
-def generate_defect_gallery(job_id: str) -> dict:
-    """Render the per-defect pipeline-validation figures and the zoomed CT
-    atlas (detection_agent). Requires a completed classification.
+# v1's gallery (viz_defect_atlas.py + viz_pipeline_perdefect.py, exposed here
+# as generate_defect_gallery) read v1-only intermediate files that v2 no
+# longer produces -- removed from the tool roster (agents/subagents.py)
+# rather than left callable against files that no longer exist. Its v2
+# replacement is capture_defect_samples() below, backed by
+# v2/capture_defect_samples.py.
 
-    Every panel is measured from the same raw scan the classifier used --
-    see .agents/skills/defect_visualizer/SKILL.md. Serialized (see
-    _SHARED_OUTPUT_LOCK) because the underlying scripts share one repo-wide
-    output path.
+VALID_SAMPLE_CLASSES = {"missing", "disconnected", "thin", "bent"}
+
+
+def capture_defect_samples(job_id: str, class_name: str | None = None) -> dict:
+    """Capture up to 5 representative sample images per defect class from
+    v2's own classification (interior-preferred, spread by each class's own
+    severity metric -- not just the first N), plus a combined atlas, via
+    v2/capture_defect_samples.py (detection_agent). Requires a completed
+    classification.
+
+    Reads EXCLUSIVELY from v2's own strut_classification_v2.json and its
+    _v2-namespaced mask (never a v1 file -- see capture_defect_samples.py's
+    own docstring for why that distinction matters).
+
+    Serialized (see dd.V2_LOCK) because the underlying script writes to a
+    fixed path shared by every job (analysis/defect_detection/v2/
+    defect_samples/), same reason detect_v2.py/export_3d.py are serialized.
+    Every produced image is moved into THIS job's own directory and any
+    stale defect-sample artifacts from a previous capture on this job are
+    purged from its artifact list, so a fresh run is never shadowed by an
+    older one and a different job can never see this job's images.
+
+    Pass class_name ("missing"|"disconnected"|"thin"|"bent") for just that
+    class's gallery; omit it for all four plus the combined atlas.
     """
+    if class_name is not None and class_name not in VALID_SAMPLE_CLASSES:
+        raise ToolError(f"Unknown class {class_name!r}. Valid: {sorted(VALID_SAMPLE_CLASSES)}")
+
     job = load_job(job_id)
     base, stk, design_json_abs = _require_segmented(job)
     env = dd.build_env(stk, base, design_json_abs)
 
-    with _SHARED_OUTPUT_LOCK:
-        for stale in list(dd.DD_ROOT.glob("VIZ_9_defect_atlas.png")) + list(dd.DD_ROOT.glob("VIZ_10_pipeline_*.png")):
-            stale.unlink(missing_ok=True)
+    scratch = dd.V2_ROOT / "defect_samples"
+    with dd.V2_LOCK:
+        if scratch.is_dir():
+            shutil.rmtree(scratch)
+        dd.run_script("capture_defect_samples.py", env, root=dd.V2_ROOT)
 
-        dd.run_script("viz_defect_atlas.py", env)
-        dd.run_script("viz_pipeline_perdefect.py", env)
+        manifest_path = scratch / "manifest.json"
+        if not manifest_path.is_file():
+            raise ToolError("Capture script ran but produced no manifest.json.")
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
-        produced = sorted(dd.DD_ROOT.glob("VIZ_9_defect_atlas.png")) + sorted(dd.DD_ROOT.glob("VIZ_10_pipeline_*.png"))
-        artifacts = [
-            _move_and_register(job_id, f, "gallery", f"Defect gallery: {f.stem.replace('_', ' ')}", "image/png")
-            for f in produced
-        ]
-    if not artifacts:
-        raise ToolError("Gallery scripts ran but produced no recognizable output files.")
-    return {"source": "viz_defect_atlas.py + viz_pipeline_perdefect.py", "artifacts": artifacts}
+        root = job_dir(job_id)
+        dest_root = root / "defect_samples"
+        if dest_root.is_dir():
+            shutil.rmtree(dest_root)
+
+        # Purge this job's own prior defect-sample artifacts before adding
+        # the fresh batch -- a rerun can select different struts, so a
+        # per-id dedup alone (as _move_and_register does) would leave old
+        # entries pointing at files that no longer exist.
+        def _drop_stale(current: dict[str, Any]) -> None:
+            current["artifacts"] = [a for a in current.get("artifacts", []) if not a["id"].startswith("defect_samples_")]
+
+        update_job(job_id, _drop_stale)
+
+        for cat, info in manifest["classes"].items():
+            for image in info["images"]:
+                src = scratch / image["path"]
+                artifact = _move_and_register(
+                    job_id, src, "defect_samples", f"{cat} sample: strut {image['strut_id']}", "image/png"
+                )
+                image["path"] = artifact["path"]
+                image["artifact_id"] = artifact["id"]
+
+        if manifest.get("atlas"):
+            atlas_src = scratch / manifest["atlas"]["path"]
+            if atlas_src.is_file():
+                artifact = _move_and_register(job_id, atlas_src, "defect_samples", "Defect sample atlas (v2)", "image/png")
+                manifest["atlas"]["path"] = artifact["path"]
+                manifest["atlas"]["artifact_id"] = artifact["id"]
+            else:
+                manifest["atlas"] = None
+
+        dest_root.mkdir(parents=True, exist_ok=True)
+        (dest_root / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+        shutil.rmtree(scratch, ignore_errors=True)
+
+    if class_name:
+        info = manifest["classes"].get(class_name)
+        if not info or not info["images"]:
+            raise ToolError(f"No {class_name} struts were classified for this job -- nothing to sample.")
+        return {"source": "capture_defect_samples.py", "class": class_name, **info}
+
+    return {"source": "capture_defect_samples.py", "manifest": manifest}
 
 
 def export_3d_models(job_id: str) -> dict:
-    """Export geometry-accurate, colour-coded 3D models (PLY/STL) where each
-    defect carries its real as-built shape (detection_agent). Requires a
-    completed classification. See
+    """Export geometry-accurate, colour-coded 3D models (PLY) where each
+    defect carries its real as-built shape, via v2's export_3d.py
+    (detection_agent). Requires a completed classification. See
     .agents/skills/lattice_3d_modeler/SKILL.md for what "geometry-accurate"
-    means per category. Serialized (see _SHARED_OUTPUT_LOCK).
+    means per category. Serialized (see dd.V2_LOCK) because export_3d.py
+    writes to a fixed path shared by every job (analysis/defect_detection/v2/
+    model3d/), same reason detect_v2.py itself is serialized.
+
+    Unlike v1's export_realistic_models.py, v2's export_3d.py produces PLY
+    only, no STL -- there is no in-browser ModelViewer for these (PLY has
+    none here; mount_surface already reports that and points at the
+    download instead of erroring confusingly).
     """
     job = load_job(job_id)
     base, stk, design_json_abs = _require_segmented(job)
     env = dd.build_env(stk, base, design_json_abs)
 
-    outdir = dd.DD_ROOT
-    parts_dir = outdir / "MODEL_realistic_parts"
-    fixed_names = (
-        "MODEL_lattice_realistic.ply",
-        "MODEL_lattice_realistic_coloured.stl",
-        "MODEL_defects_only.ply",
-    )
+    outdir = dd.V2_ROOT / "model3d"
+    parts_dir = outdir / "parts"
+    fixed_names = ("lattice_full.ply", "lattice_defects_only.ply", "color_key.png")
 
-    with _SHARED_OUTPUT_LOCK:
+    with dd.V2_LOCK:
         for name in fixed_names:
             (outdir / name).unlink(missing_ok=True)
         if parts_dir.is_dir():
             shutil.rmtree(parts_dir)
 
-        dd.run_script("export_realistic_models.py", env)
+        dd.run_script("export_3d.py", env, root=dd.V2_ROOT)
 
         produced = [outdir / name for name in fixed_names if (outdir / name).is_file()]
         if parts_dir.is_dir():
             produced.extend(sorted(parts_dir.glob("*")))
 
-        media_by_suffix = {".ply": "application/octet-stream", ".stl": "model/stl"}
+        media_by_suffix = {".ply": "application/octet-stream", ".png": "image/png"}
         artifacts = [
             _move_and_register(
                 job_id, f, "models", f"3D model: {f.name}", media_by_suffix.get(f.suffix, "application/octet-stream")
@@ -414,7 +477,7 @@ def export_3d_models(job_id: str) -> dict:
         ]
     if not artifacts:
         raise ToolError("Export script ran but produced no recognizable output files.")
-    return {"source": "export_realistic_models.py", "artifacts": artifacts}
+    return {"source": "export_3d.py", "artifacts": artifacts}
 
 
 def run_initial_analysis(job_id: str) -> dict[str, Any]:
