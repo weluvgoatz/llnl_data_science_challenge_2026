@@ -1,0 +1,1583 @@
+%PDF-1.4
+%“Œ‹ž ReportLab Generated PDF document (opensource)
+1 0 obj
+<<
+/F1 2 0 R /F2 3 0 R /F3 4 0 R
+>>
+endobj
+2 0 obj
+<<
+/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font
+>>
+endobj
+3 0 obj
+<<
+/BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding /Name /F2 /Subtype /Type1 /Type /Font
+>>
+endobj
+4 0 obj
+<<
+/BaseFont /Helvetica-BoldOblique /Encoding /WinAnsiEncoding /Name /F3 /Subtype /Type1 /Type /Font
+>>
+endobj
+5 0 obj
+<<
+/Contents 13 0 R /MediaBox [ 0 0 612 792 ] /Parent 12 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+6 0 obj
+<<
+/Contents 14 0 R /MediaBox [ 0 0 612 792 ] /Parent 12 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+7 0 obj
+<<
+/Contents 15 0 R /MediaBox [ 0 0 612 792 ] /Parent 12 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+8 0 obj
+<<
+/Contents 16 0 R /MediaBox [ 0 0 612 792 ] /Parent 12 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+9 0 obj
+<<
+/Contents 17 0 R /MediaBox [ 0 0 612 792 ] /Parent 12 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+10 0 obj
+<<
+/PageMode /UseNone /Pages 12 0 R /Type /Catalog
+>>
+endobj
+11 0 obj
+<<
+/Author (Defect Results Reporting Agent) /CreationDate (D:20260728160453-07'00') /Creator (\(unspecified\)) /Keywords () /ModDate (D:20260728160453-07'00') /Producer (ReportLab PDF Library - \(opensource\)) 
+  /Subject (\(unspecified\)) /Title (Defect Detection Results Report) /Trapped /False
+>>
+endobj
+12 0 obj
+<<
+/Count 5 /Kids [ 5 0 R 6 0 R 7 0 R 8 0 R 9 0 R ] /Type /Pages
+>>
+endobj
+13 0 obj
+<<
+/Length 6968
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+q
+BT /F1 8 Tf 9.6 TL ET
+.333333 .333333 .333333 rg
+BT 1 0 0 1 293.324 25.2 Tm (Page 1) Tj T* ET
+Q
+q
+1 0 0 1 52.8 711.6 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 4 Tm /F2 20 Tf 24 TL 100.4 0 Td (Defect Detection Results Report) Tj T* -100.4 0 Td ET
+Q
+Q
+q
+1 0 0 1 52.8 686.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 3.5 Tm /F1 9.5 Tf 13 TL (Specimen: octet_9x9x9_defects) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 667.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 3.5 Tm /F1 9.5 Tf 13 TL (Source JSON: octet_9x9x9_defects.json) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 648.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 3.5 Tm /F1 9.5 Tf 13 TL (Generated: 2026-07-28T16:04:53-07:00) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 629.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 3.5 Tm /F1 9.5 Tf 13 TL (Overall condition rating: Good) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 618.6 cm
+Q
+q
+1 0 0 1 52.8 588.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 14 Tf 18 TL (Registered Design Summary) Tj T* ET
+Q
+Q
+q
+1 0 0 1 88.2 180.6 cm
+q
+.85098 .890196 .941176 rg
+n 0 402 435.6 -18 re f*
+0 0 0 rg
+BT /F2 7.5 Tf 12 TL ET
+BT 1 0 0 1 6 391.5 Tm (Feature) Tj T* ET
+BT 1 0 0 1 117.6 391.5 Tm (Value) Tj T* ET
+BT 1 0 0 1 348 391.5 Tm (Source) Tj T* ET
+BT /F1 7.5 Tf 12 TL ET
+q
+1 0 0 1 6 369 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (Specimen ID) Tj T* ET
+Q
+Q
+q
+1 0 0 1 117.6 357 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (210127_Brian_Tran_strut_lattices_0point5dash1) Tj T* (1 Slices) Tj T* ET
+Q
+Q
+q
+1 0 0 1 348 369 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (metadata/path) Tj T* ET
+Q
+Q
+q
+1 0 0 1 6 327 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (Registered JSON) Tj T* (filename) Tj T* ET
+Q
+Q
+q
+1 0 0 1 117.6 327 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (210127_Brian_Tran_strut_lattices_0point5dash1) Tj T* (1 Slices.json) Tj T* ET
+Q
+Q
+q
+1 0 0 1 348 327 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (discovered/explici) Tj T* (t) Tj T* ET
+Q
+Q
+q
+1 0 0 1 6 297 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (Registered JSON) Tj T* (path) Tj T* ET
+Q
+Q
+q
+1 0 0 1 117.6 273 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 38 Tm /F1 10 Tf 12 TL (C:\\Users\\kendr\\Desktop\\DSC 2026\\Group\\llnl_da) Tj T* (ta_science_challenge_2026-main\\data\\missing_) Tj T* (struts\\registered_jsons\\210127_Brian_Tran_strut) Tj T* (_lattices_0point5dash1 1 Slices.json) Tj T* ET
+Q
+Q
+q
+1 0 0 1 348 297 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (discovered/explici) Tj T* (t) Tj T* ET
+Q
+Q
+q
+1 0 0 1 6 255 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (Lattice type) Tj T* ET
+Q
+Q
+q
+1 0 0 1 117.6 255 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (octet unit-cell graph) Tj T* ET
+Q
+Q
+q
+1 0 0 1 348 255 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (metadata/schema) Tj T* ET
+Q
+Q
+q
+1 0 0 1 6 237 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (Total struts) Tj T* ET
+Q
+Q
+q
+1 0 0 1 117.6 237 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (18468) Tj T* ET
+Q
+Q
+q
+1 0 0 1 348 237 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (struts) Tj T* ET
+Q
+Q
+q
+1 0 0 1 6 219 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (Total junctions) Tj T* ET
+Q
+Q
+q
+1 0 0 1 117.6 219 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (10206) Tj T* ET
+Q
+Q
+q
+1 0 0 1 348 219 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (junctions) Tj T* ET
+Q
+Q
+q
+1 0 0 1 6 201 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (Total octet lattice cells) Tj T* ET
+Q
+Q
+q
+1 0 0 1 117.6 201 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (729) Tj T* ET
+Q
+Q
+q
+1 0 0 1 348 201 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (unit_cells) Tj T* ET
+Q
+Q
+q
+1 0 0 1 6 183 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (Unit-cell dimensions) Tj T* ET
+Q
+Q
+q
+1 0 0 1 117.6 183 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (9 \327 9 \327 9) Tj T* ET
+Q
+Q
+q
+1 0 0 1 348 171 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (structured) Tj T* (indices/metadata) Tj T* ET
+Q
+Q
+q
+1 0 0 1 6 153 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (Coordinate bounds) Tj T* ET
+Q
+Q
+q
+1 0 0 1 117.6 141 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (x=58.7606 to 773.745; y=48.5686 to 764.939;) Tj T* (z=24.4953 to 737.846) Tj T* ET
+Q
+Q
+q
+1 0 0 1 348 141 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (junctions.*.positio) Tj T* (n) Tj T* ET
+Q
+Q
+q
+1 0 0 1 6 111 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (Minimum strut) Tj T* (thickness) Tj T* ET
+Q
+Q
+q
+1 0 0 1 117.6 123 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (0.1) Tj T* ET
+Q
+Q
+q
+1 0 0 1 348 123 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (calculated) Tj T* ET
+Q
+Q
+q
+1 0 0 1 6 81 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (Maximum strut) Tj T* (thickness) Tj T* ET
+Q
+Q
+q
+1 0 0 1 117.6 93 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (0.1) Tj T* ET
+Q
+Q
+q
+1 0 0 1 348 93 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (calculated) Tj T* ET
+Q
+Q
+q
+1 0 0 1 6 51 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (Average strut) Tj T* (thickness) Tj T* ET
+Q
+Q
+q
+1 0 0 1 117.6 63 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (0.1) Tj T* ET
+Q
+Q
+q
+1 0 0 1 348 63 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (calculated) Tj T* ET
+Q
+Q
+q
+1 0 0 1 6 33 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (Median strut thickness) Tj T* ET
+Q
+Q
+q
+1 0 0 1 117.6 33 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (0.1) Tj T* ET
+Q
+Q
+q
+1 0 0 1 348 33 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (calculated) Tj T* ET
+Q
+Q
+q
+1 0 0 1 6 3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (Unique thickness) Tj T* (values) Tj T* ET
+Q
+Q
+q
+1 0 0 1 117.6 15 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (1) Tj T* ET
+Q
+Q
+q
+1 0 0 1 348 15 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (calculated) Tj T* ET
+Q
+Q
+q
+1 J
+1 j
+.501961 .501961 .501961 RG
+.35 w
+n 0 402 m 435.6 402 l S
+n 0 0 m 435.6 0 l S
+n 0 0 m 0 402 l S
+n 435.6 0 m 435.6 402 l S
+n 0 384 m 435.6 384 l S
+n 0 354 m 435.6 354 l S
+n 0 324 m 435.6 324 l S
+n 0 270 m 435.6 270 l S
+n 0 252 m 435.6 252 l S
+n 0 234 m 435.6 234 l S
+n 0 216 m 435.6 216 l S
+n 0 198 m 435.6 198 l S
+n 0 168 m 435.6 168 l S
+n 0 138 m 435.6 138 l S
+n 0 108 m 435.6 108 l S
+n 0 78 m 435.6 78 l S
+n 0 48 m 435.6 48 l S
+n 0 30 m 435.6 30 l S
+n 111.6 0 m 111.6 402 l S
+n 342 0 m 342 402 l S
+Q
+Q
+Q
+q
+1 0 0 1 52.8 172.6 cm
+Q
+q
+1 0 0 1 52.8 146.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F3 12 Tf 14 TL (Evaluation Coverage) Tj T* ET
+Q
+Q
+q
+1 0 0 1 136.8 68.6 cm
+q
+.85098 .890196 .941176 rg
+n 0 72 338.4 -18 re f*
+0 0 0 rg
+BT /F2 8 Tf 12 TL ET
+BT 1 0 0 1 6 61 Tm (Metric) Tj T* ET
+BT 1 0 0 1 200.4 61 Tm (Value) Tj T* ET
+BT /F1 8 Tf 12 TL ET
+BT 1 0 0 1 6 43 Tm (Registered struts) Tj T* ET
+BT 1 0 0 1 200.4 43 Tm (18468) Tj T* ET
+BT 1 0 0 1 6 25 Tm (Evaluated struts) Tj T* ET
+BT 1 0 0 1 200.4 25 Tm (18468) Tj T* ET
+BT 1 0 0 1 6 7 Tm (Duplicate registered IDs) Tj T* ET
+BT 1 0 0 1 200.4 7 Tm (0) Tj T* ET
+q
+1 J
+1 j
+.501961 .501961 .501961 RG
+.35 w
+n 0 72 m 338.4 72 l S
+n 0 0 m 0 72 l S
+n 338.4 0 m 338.4 72 l S
+n 0 0 m 338.4 0 l S
+n 0 54 m 338.4 54 l S
+n 0 36 m 338.4 36 l S
+n 0 18 m 338.4 18 l S
+n 194.4 0 m 194.4 72 l S
+Q
+Q
+Q
+ 
+endstream
+endobj
+14 0 obj
+<<
+/Length 5945
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+q
+BT /F1 8 Tf 9.6 TL ET
+.333333 .333333 .333333 rg
+BT 1 0 0 1 293.324 25.2 Tm (Page 2) Tj T* ET
+Q
+q
+1 0 0 1 136.8 699.6 cm
+q
+.85098 .890196 .941176 rg
+n 0 36 338.4 -18 re f*
+0 0 0 rg
+BT /F2 8 Tf 12 TL ET
+BT 1 0 0 1 6 25 Tm (Metric) Tj T* ET
+BT 1 0 0 1 200.4 25 Tm (Value) Tj T* ET
+BT /F1 8 Tf 12 TL ET
+BT 1 0 0 1 6 7 Tm (Duplicate evaluation IDs) Tj T* ET
+BT 1 0 0 1 200.4 7 Tm (0) Tj T* ET
+q
+1 J
+1 j
+.501961 .501961 .501961 RG
+.35 w
+n 0 36 m 338.4 36 l S
+n 0 18 m 0 36 l S
+n 0 0 m 0 18 l S
+n 338.4 18 m 338.4 36 l S
+n 338.4 0 m 338.4 18 l S
+n 0 0 m 338.4 0 l S
+n 0 18 m 338.4 18 l S
+n 194.4 18 m 194.4 36 l S
+n 194.4 0 m 194.4 18 l S
+Q
+Q
+Q
+q
+1 0 0 1 52.8 691.6 cm
+Q
+q
+1 0 0 1 52.8 673.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (- ID-level coverage is unavailable because one or both strut collections lack reliable identifiers.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 645.6 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 3 Tm /F2 13 Tf 16 TL (Executive Summary) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 612.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 16.5 Tm /F1 9.5 Tf 13 TL (The supplied result contains 18,468 struts. 17,253 \(93.42%\) are intact and 1,215 \(6.58%\) are classified as missing,) Tj T* (broken/disconnected, bent, or thinned.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 593.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 3.5 Tm /F1 9.5 Tf 13 TL (This condition rating is based only on detected defect frequency. It is not a structural safety determination.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 441.6 cm
+q
+.85098 .890196 .941176 rg
+n 0 147 417.6 -21 re f*
+1 1 1 rg
+n 0 126 417.6 -21 re f*
+.960784 .968627 .980392 rg
+n 0 105 417.6 -21 re f*
+1 1 1 rg
+n 0 84 417.6 -21 re f*
+.960784 .968627 .980392 rg
+n 0 63 417.6 -21 re f*
+1 1 1 rg
+n 0 42 417.6 -21 re f*
+.960784 .968627 .980392 rg
+n 0 21 417.6 -21 re f*
+.090196 .168627 .301961 rg
+BT /F2 8.5 Tf 11 TL ET
+BT 1 0 0 1 6 133.5 Tm (Metric) Tj T* ET
+BT 1 0 0 1 236.4 133.5 Tm (Value) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 11 TL ET
+BT 1 0 0 1 6 112.5 Tm (Total Struts) Tj T* ET
+BT 1 0 0 1 385.607 112.5 Tm (18,468) Tj T* ET
+BT 1 0 0 1 6 91.5 Tm (Intact Percentage) Tj T* ET
+BT 1 0 0 1 382.7765 91.5 Tm (93.42%) Tj T* ET
+BT 1 0 0 1 6 70.5 Tm (Total Defective Percentage) Tj T* ET
+BT 1 0 0 1 387.5025 70.5 Tm (6.58%) Tj T* ET
+BT 1 0 0 1 6 49.5 Tm (Severe Defect Percentage) Tj T* ET
+BT 1 0 0 1 387.5025 49.5 Tm (3.05%) Tj T* ET
+BT 1 0 0 1 6 28.5 Tm (Most Common Defect) Tj T* ET
+BT 1 0 0 1 382.7935 28.5 Tm (Missing) Tj T* ET
+BT 1 0 0 1 6 7.5 Tm (Condition Rating) Tj T* ET
+BT 1 0 0 1 390.809 7.5 Tm (Good) Tj T* ET
+q
+1 J
+1 j
+.501961 .501961 .501961 RG
+.4 w
+n 0 147 m 417.6 147 l S
+n 0 0 m 417.6 0 l S
+n 0 0 m 0 147 l S
+n 417.6 0 m 417.6 147 l S
+n 0 126 m 417.6 126 l S
+n 0 105 m 417.6 105 l S
+n 0 84 m 417.6 84 l S
+n 0 63 m 417.6 63 l S
+n 0 42 m 417.6 42 l S
+n 0 21 m 417.6 21 l S
+n 230.4 0 m 230.4 147 l S
+Q
+Q
+Q
+q
+1 0 0 1 52.8 433.6 cm
+Q
+q
+1 0 0 1 52.8 405.6 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 3 Tm /F2 13 Tf 16 TL (Source Information) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 372.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 16.5 Tm /F1 9.5 Tf 13 TL (Input JSON path: C:\\Users\\kendr\\Desktop\\DSC) Tj T* (2026\\Group\\llnl_data_science_challenge_2026-main\\analysis\\defect_detection\\sample_output\\octet_9x9x9_defects.json) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 353.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 3.5 Tm /F1 9.5 Tf 13 TL (Detected data structure: strut-level records at `struts`) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 334.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 3.5 Tm /F1 9.5 Tf 13 TL (Meta.Volume Shape Zyx: [761, 815, 837]) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 306.6 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 3 Tm /F2 13 Tf 16 TL (Defect Distribution) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 131.6 cm
+q
+.85098 .890196 .941176 rg
+n 0 168 417.6 -21 re f*
+1 1 1 rg
+n 0 147 417.6 -21 re f*
+.960784 .968627 .980392 rg
+n 0 126 417.6 -21 re f*
+1 1 1 rg
+n 0 105 417.6 -21 re f*
+.960784 .968627 .980392 rg
+n 0 84 417.6 -21 re f*
+1 1 1 rg
+n 0 63 417.6 -21 re f*
+.960784 .968627 .980392 rg
+n 0 42 417.6 -21 re f*
+1 1 1 rg
+n 0 21 417.6 -21 re f*
+.090196 .168627 .301961 rg
+BT /F2 8.5 Tf 11 TL ET
+BT 1 0 0 1 6 154.5 Tm (Strut Condition) Tj T* ET
+BT 1 0 0 1 236.4 154.5 Tm (Count) Tj T* ET
+BT 1 0 0 1 326.4 154.5 Tm (Percentage) Tj T* ET
+0 0 0 rg
+BT /F1 8.5 Tf 11 TL ET
+BT 1 0 0 1 6 133.5 Tm (Intact) Tj T* ET
+BT 1 0 0 1 288.407 133.5 Tm (17,253) Tj T* ET
+BT 1 0 0 1 382.7765 133.5 Tm (93.42%) Tj T* ET
+BT 1 0 0 1 6 112.5 Tm (Missing) Tj T* ET
+BT 1 0 0 1 300.222 112.5 Tm (410) Tj T* ET
+BT 1 0 0 1 387.5025 112.5 Tm (2.22%) Tj T* ET
+BT 1 0 0 1 6 91.5 Tm (Broken \(source: disconnected\)) Tj T* ET
+BT 1 0 0 1 300.222 91.5 Tm (153) Tj T* ET
+BT 1 0 0 1 387.5025 91.5 Tm (0.83%) Tj T* ET
+BT 1 0 0 1 6 70.5 Tm (Bent) Tj T* ET
+BT 1 0 0 1 300.222 70.5 Tm (365) Tj T* ET
+BT 1 0 0 1 387.5025 70.5 Tm (1.98%) Tj T* ET
+BT 1 0 0 1 6 49.5 Tm (Thinned \(source: thin\)) Tj T* ET
+BT 1 0 0 1 300.222 49.5 Tm (287) Tj T* ET
+BT 1 0 0 1 387.5025 49.5 Tm (1.55%) Tj T* ET
+BT 1 0 0 1 6 28.5 Tm (Total defective) Tj T* ET
+BT 1 0 0 1 293.133 28.5 Tm (1,215) Tj T* ET
+BT 1 0 0 1 387.5025 28.5 Tm (6.58%) Tj T* ET
+BT 1 0 0 1 6 7.5 Tm (Severe defects) Tj T* ET
+BT 1 0 0 1 300.222 7.5 Tm (563) Tj T* ET
+BT 1 0 0 1 387.5025 7.5 Tm (3.05%) Tj T* ET
+q
+1 J
+1 j
+.501961 .501961 .501961 RG
+.4 w
+n 0 168 m 417.6 168 l S
+n 0 0 m 417.6 0 l S
+n 0 0 m 0 168 l S
+n 417.6 0 m 417.6 168 l S
+n 0 147 m 417.6 147 l S
+n 0 126 m 417.6 126 l S
+n 0 105 m 417.6 105 l S
+n 0 84 m 417.6 84 l S
+n 0 63 m 417.6 63 l S
+n 0 42 m 417.6 42 l S
+n 0 21 m 417.6 21 l S
+n 230.4 0 m 230.4 168 l S
+n 320.4 0 m 320.4 168 l S
+Q
+Q
+Q
+q
+1 0 0 1 52.8 123.6 cm
+Q
+q
+1 0 0 1 52.8 95.6 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 3 Tm /F2 13 Tf 16 TL (Key Findings) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 75.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 3.5 Tm /F1 9.5 Tf 13 TL (- Most struts are intact.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 56.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 3.5 Tm /F1 9.5 Tf 13 TL (- Missing is the most frequent nonzero defect; Broken is the least frequent nonzero defect.) Tj T* ET
+Q
+Q
+ 
+endstream
+endobj
+15 0 obj
+<<
+/Length 5895
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+q
+BT /F1 8 Tf 9.6 TL ET
+.333333 .333333 .333333 rg
+BT 1 0 0 1 293.324 25.2 Tm (Page 3) Tj T* ET
+Q
+q
+1 0 0 1 52.8 722.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 3.5 Tm /F1 9.5 Tf 13 TL (- Missing and broken/disconnected members contribute 563 severe defects.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 694.6 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 3 Tm /F2 13 Tf 16 TL (Data Validation and Warnings) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 674.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 3.5 Tm /F1 9.5 Tf 13 TL (- Expected category `uncertain` is absent or has zero records.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 646.6 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 3 Tm /F2 13 Tf 16 TL (Limitations) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 626.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 3.5 Tm /F1 9.5 Tf 13 TL (- The report depends on the supplied defect-detection output.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 607.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 3.5 Tm /F1 9.5 Tf 13 TL (- The reporting agent does not independently verify the 3D CT scan.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 588.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 3.5 Tm /F1 9.5 Tf 13 TL (- Defect counts do not describe the structural importance of individual struts.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 569.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 3.5 Tm /F1 9.5 Tf 13 TL (- Defect percentages do not determine structural safety.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 550.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 3.5 Tm /F1 9.5 Tf 13 TL (- Location-aware engineering analysis and FEM would be required for structural conclusions.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 522.6 cm
+q
+.121569 .227451 .372549 rg
+BT 1 0 0 1 0 3 Tm /F2 13 Tf 16 TL (Recommended Next Steps) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 502.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 3.5 Tm /F1 9.5 Tf 13 TL (- Inspect missing and broken/disconnected struts in the original CT volume.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 483.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 3.5 Tm /F1 9.5 Tf 13 TL (- Use the endpoint coordinates to visualize defects and investigate connected clusters.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 464.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 3.5 Tm /F1 9.5 Tf 13 TL (- Compare predictions with the registered STL or design JSON where available.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 445.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 3.5 Tm /F1 9.5 Tf 13 TL (- Perform structural analysis before drawing engineering or safety conclusions.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 428.6 cm
+Q
+q
+1 0 0 1 52.8 398.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 14 Tf 18 TL (Spatial Defect Concentration Analysis) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 380.6 cm
+q
+BT 1 0 0 1 0 2 Tm 12 TL /F2 10 Tf 0 0 0 rg (Grouping method:) Tj /F1 10 Tf ( coordinate grid with 3x3x3 bins) Tj T* ET
+Q
+Q
+q
+1 0 0 1 91.8 128.6 cm
+q
+.85098 .890196 .941176 rg
+n 0 252 428.4 -18 re f*
+1 1 1 rg
+n 0 234 428.4 -78 re f*
+.960784 .968627 .980392 rg
+n 0 156 428.4 -78 re f*
+1 1 1 rg
+n 0 78 428.4 -78 re f*
+0 0 0 rg
+BT /F2 7 Tf 12 TL ET
+BT 1 0 0 1 6 242 Tm (Rank) Tj T* ET
+BT 1 0 0 1 31.2 242 Tm (Region) Tj T* ET
+BT 1 0 0 1 88.8 242 Tm (Location) Tj T* ET
+BT 1 0 0 1 232.8 242 Tm (Struts) Tj T* ET
+BT 1 0 0 1 268.8 242 Tm (Defects) Tj T* ET
+BT 1 0 0 1 304.8 242 Tm (Defect %) Tj T* ET
+BT 1 0 0 1 344.4 242 Tm (Ratio) Tj T* ET
+BT 1 0 0 1 376.8 242 Tm (Dominant) Tj T* ET
+BT /F1 7 Tf 12 TL ET
+BT 1 0 0 1 6 224 Tm (1) Tj T* ET
+q
+1 0 0 1 31.2 195 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 26 Tm /F1 10 Tf 12 TL (X-low /) Tj T* (Y-high /) Tj T* (Z-high) Tj T* ET
+Q
+Q
+q
+1 0 0 1 88.8 159 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 62 Tm /F1 10 Tf 12 TL (Grid region X-low / Y-high /) Tj T* (Z-high; midpoint ranges) Tj T* (x=64.27-284.04,) Tj T* (y=521.42-754.12,) Tj T* (z=503.40-742.11) Tj T* (\(source-coordinate units\)) Tj T* ET
+Q
+Q
+BT 1 0 0 1 232.8 224 Tm (685) Tj T* ET
+BT 1 0 0 1 268.8 224 Tm (97) Tj T* ET
+BT 1 0 0 1 304.8 224 Tm (14.16%) Tj T* ET
+BT 1 0 0 1 344.4 224 Tm (2.15) Tj T* ET
+q
+1 0 0 1 376.8 219 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (Missing) Tj T* ET
+Q
+Q
+BT 1 0 0 1 6 146 Tm (2) Tj T* ET
+q
+1 0 0 1 31.2 117 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 26 Tm /F1 10 Tf 12 TL (X-high /) Tj T* (Y-high /) Tj T* (Z-high) Tj T* ET
+Q
+Q
+q
+1 0 0 1 88.8 81 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 62 Tm /F1 10 Tf 12 TL (Grid region X-high / Y-high /) Tj T* (Z-high; midpoint ranges) Tj T* (x=531.88-765.50,) Tj T* (y=521.34-751.75,) Tj T* (z=518.13-744.62) Tj T* (\(source-coordinate units\)) Tj T* ET
+Q
+Q
+BT 1 0 0 1 232.8 146 Tm (709) Tj T* ET
+BT 1 0 0 1 268.8 146 Tm (84) Tj T* ET
+BT 1 0 0 1 304.8 146 Tm (11.85%) Tj T* ET
+BT 1 0 0 1 344.4 146 Tm (1.80) Tj T* ET
+q
+1 0 0 1 376.8 141 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (Missing) Tj T* ET
+Q
+Q
+BT 1 0 0 1 6 68 Tm (3) Tj T* ET
+q
+1 0 0 1 31.2 39 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 26 Tm /F1 10 Tf 12 TL (X-middle /) Tj T* (Y-high /) Tj T* (Z-high) Tj T* ET
+Q
+Q
+q
+1 0 0 1 88.8 3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 62 Tm /F1 10 Tf 12 TL (Grid region X-middle / Y-high) Tj T* (/ Z-high; midpoint ranges) Tj T* (x=297.65-531.07,) Tj T* (y=523.19-752.62,) Tj T* (z=517.74-745.35) Tj T* (\(source-coordinate units\)) Tj T* ET
+Q
+Q
+BT 1 0 0 1 232.8 68 Tm (688) Tj T* ET
+BT 1 0 0 1 268.8 68 Tm (76) Tj T* ET
+BT 1 0 0 1 304.8 68 Tm (11.05%) Tj T* ET
+BT 1 0 0 1 344.4 68 Tm (1.68) Tj T* ET
+q
+1 0 0 1 376.8 63 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (Missing) Tj T* ET
+Q
+Q
+q
+1 J
+1 j
+.501961 .501961 .501961 RG
+.35 w
+n 0 252 m 428.4 252 l S
+n 0 0 m 428.4 0 l S
+n 0 0 m 0 252 l S
+n 428.4 0 m 428.4 252 l S
+n 0 234 m 428.4 234 l S
+n 0 156 m 428.4 156 l S
+n 0 78 m 428.4 78 l S
+n 25.2 0 m 25.2 252 l S
+n 82.8 0 m 82.8 252 l S
+n 226.8 0 m 226.8 252 l S
+n 262.8 0 m 262.8 252 l S
+n 298.8 0 m 298.8 252 l S
+n 338.4 0 m 338.4 252 l S
+n 370.8 0 m 370.8 252 l S
+Q
+Q
+Q
+q
+1 0 0 1 52.8 120.6 cm
+Q
+q
+1 0 0 1 52.8 94.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F3 12 Tf 14 TL (Detailed Regional Findings) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 64.6 cm
+q
+BT 1 0 0 1 0 14 Tm 12 TL /F2 10 Tf 0 0 0 rg (X-low / Y-high / Z-high) Tj /F1 10 Tf  T* (Location: Grid region X-low / Y-high / Z-high; midpoint ranges x=64.27-284.04, y=521.42-754.12, z=503.40-742.11) Tj T* ET
+Q
+Q
+ 
+endstream
+endobj
+16 0 obj
+<<
+/Length 8034
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+q
+BT /F1 8 Tf 9.6 TL ET
+.333333 .333333 .333333 rg
+BT 1 0 0 1 293.324 25.2 Tm (Page 4) Tj T* ET
+Q
+q
+1 0 0 1 52.8 687.6 cm
+q
+BT 1 0 0 1 0 38 Tm 12 TL /F1 10 Tf 0 0 0 rg (\(source-coordinate units\)) Tj  T* (Defects: 97/685 \(14.16%\); ratio 2.15; severe 8.91%; dominant Missing.) Tj  T* (Counts: missing=44, broken=17, bent=13, thinned=23.) Tj  T* (Flagged because: concentration ratio 2.15 meets the 1.50 relative threshold) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 682.6 cm
+Q
+q
+1 0 0 1 52.8 604.6 cm
+q
+BT 1 0 0 1 0 62 Tm 12 TL /F2 10 Tf 0 0 0 rg (X-high / Y-high / Z-high) Tj /F1 10 Tf  T* (Location: Grid region X-high / Y-high / Z-high; midpoint ranges x=531.88-765.50, y=521.34-751.75,) Tj T* (z=518.13-744.62 \(source-coordinate units\)) Tj  T* (Defects: 84/709 \(11.85%\); ratio 1.80; severe 7.76%; dominant Missing.) Tj  T* (Counts: missing=37, broken=18, bent=16, thinned=13.) Tj  T* (Flagged because: concentration ratio 1.80 meets the 1.50 relative threshold) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 599.6 cm
+Q
+q
+1 0 0 1 52.8 521.6 cm
+q
+BT 1 0 0 1 0 62 Tm 12 TL /F2 10 Tf 0 0 0 rg (X-middle / Y-high / Z-high) Tj /F1 10 Tf  T* (Location: Grid region X-middle / Y-high / Z-high; midpoint ranges x=297.65-531.07, y=523.19-752.62,) Tj T* (z=517.74-745.35 \(source-coordinate units\)) Tj  T* (Defects: 76/688 \(11.05%\); ratio 1.68; severe 7.41%; dominant Missing.) Tj  T* (Counts: missing=36, broken=15, bent=20, thinned=5.) Tj  T* (Flagged because: concentration ratio 1.68 meets the 1.50 relative threshold) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 516.6 cm
+Q
+q
+1 0 0 1 52.8 504.6 cm
+Q
+q
+1 0 0 1 52.8 474.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 14 Tf 18 TL (Exterior Faces of the Large Cube) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 444.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL -0.064375 Tw (This analysis applies only to the six exterior faces of the complete object. Internal volumetric-region boundaries are) Tj T* 0 Tw (not treated as physical faces.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 127.8 318.6 cm
+q
+.85098 .890196 .941176 rg
+n 0 126 356.4 -18 re f*
+1 1 1 rg
+n 0 108 356.4 -18 re f*
+.960784 .968627 .980392 rg
+n 0 90 356.4 -18 re f*
+1 1 1 rg
+n 0 72 356.4 -18 re f*
+.960784 .968627 .980392 rg
+n 0 54 356.4 -18 re f*
+1 1 1 rg
+n 0 36 356.4 -18 re f*
+.960784 .968627 .980392 rg
+n 0 18 356.4 -18 re f*
+0 0 0 rg
+BT /F2 7 Tf 12 TL ET
+BT 1 0 0 1 6 116 Tm (Rank) Tj T* ET
+BT 1 0 0 1 31.2 116 Tm (Face) Tj T* ET
+BT 1 0 0 1 88.8 116 Tm (Struts) Tj T* ET
+BT 1 0 0 1 135.6 116 Tm (Defects) Tj T* ET
+BT 1 0 0 1 182.4 116 Tm (Defect %) Tj T* ET
+BT 1 0 0 1 232.8 116 Tm (Severe %) Tj T* ET
+BT 1 0 0 1 283.2 116 Tm (Dominant) Tj T* ET
+BT /F1 7 Tf 12 TL ET
+BT 1 0 0 1 6 98 Tm (1) Tj T* ET
+BT 1 0 0 1 31.2 98 Tm (Back) Tj T* ET
+BT 1 0 0 1 88.8 98 Tm (1650) Tj T* ET
+BT 1 0 0 1 135.6 98 Tm (382) Tj T* ET
+BT 1 0 0 1 182.4 98 Tm (23.15%) Tj T* ET
+BT 1 0 0 1 232.8 98 Tm (21.33%) Tj T* ET
+BT 1 0 0 1 283.2 98 Tm (Missing) Tj T* ET
+BT 1 0 0 1 6 80 Tm (2) Tj T* ET
+BT 1 0 0 1 31.2 80 Tm (Top) Tj T* ET
+BT 1 0 0 1 88.8 80 Tm (1547) Tj T* ET
+BT 1 0 0 1 135.6 80 Tm (149) Tj T* ET
+BT 1 0 0 1 182.4 80 Tm (9.63%) Tj T* ET
+BT 1 0 0 1 232.8 80 Tm (3.17%) Tj T* ET
+BT 1 0 0 1 283.2 80 Tm (Bent) Tj T* ET
+BT 1 0 0 1 6 62 Tm (3) Tj T* ET
+BT 1 0 0 1 31.2 62 Tm (Front) Tj T* ET
+BT 1 0 0 1 88.8 62 Tm (1638) Tj T* ET
+BT 1 0 0 1 135.6 62 Tm (130) Tj T* ET
+BT 1 0 0 1 182.4 62 Tm (7.94%) Tj T* ET
+BT 1 0 0 1 232.8 62 Tm (1.89%) Tj T* ET
+BT 1 0 0 1 283.2 62 Tm (Bent) Tj T* ET
+BT 1 0 0 1 6 44 Tm (4) Tj T* ET
+BT 1 0 0 1 31.2 44 Tm (Bottom) Tj T* ET
+BT 1 0 0 1 88.8 44 Tm (1480) Tj T* ET
+BT 1 0 0 1 135.6 44 Tm (106) Tj T* ET
+BT 1 0 0 1 182.4 44 Tm (7.16%) Tj T* ET
+BT 1 0 0 1 232.8 44 Tm (2.50%) Tj T* ET
+BT 1 0 0 1 283.2 44 Tm (Bent) Tj T* ET
+BT 1 0 0 1 6 26 Tm (5) Tj T* ET
+BT 1 0 0 1 31.2 26 Tm (Right) Tj T* ET
+BT 1 0 0 1 88.8 26 Tm (1633) Tj T* ET
+BT 1 0 0 1 135.6 26 Tm (90) Tj T* ET
+BT 1 0 0 1 182.4 26 Tm (5.51%) Tj T* ET
+BT 1 0 0 1 232.8 26 Tm (0.98%) Tj T* ET
+BT 1 0 0 1 283.2 26 Tm (Thinned) Tj T* ET
+BT 1 0 0 1 6 8 Tm (6) Tj T* ET
+BT 1 0 0 1 31.2 8 Tm (Left) Tj T* ET
+BT 1 0 0 1 88.8 8 Tm (1636) Tj T* ET
+BT 1 0 0 1 135.6 8 Tm (89) Tj T* ET
+BT 1 0 0 1 182.4 8 Tm (5.44%) Tj T* ET
+BT 1 0 0 1 232.8 8 Tm (0.92%) Tj T* ET
+BT 1 0 0 1 283.2 8 Tm (Thinned) Tj T* ET
+q
+1 J
+1 j
+.501961 .501961 .501961 RG
+.35 w
+n 0 126 m 356.4 126 l S
+n 0 0 m 356.4 0 l S
+n 0 0 m 0 126 l S
+n 356.4 0 m 356.4 126 l S
+n 0 108 m 356.4 108 l S
+n 0 90 m 356.4 90 l S
+n 0 72 m 356.4 72 l S
+n 0 54 m 356.4 54 l S
+n 0 36 m 356.4 36 l S
+n 0 18 m 356.4 18 l S
+n 25.2 0 m 25.2 126 l S
+n 82.8 0 m 82.8 126 l S
+n 129.6 0 m 129.6 126 l S
+n 176.4 0 m 176.4 126 l S
+n 226.8 0 m 226.8 126 l S
+n 277.2 0 m 277.2 126 l S
+Q
+Q
+Q
+q
+1 0 0 1 52.8 310.6 cm
+Q
+q
+1 0 0 1 52.8 280.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 14 Tf 18 TL (Nine Volumetric Regions) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 262.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (Volume grid: 3 x 3 x 1. Total volumetric regions: 9. No internal region boundary is analyzed as a physical face.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 86.4 76.6 cm
+q
+.85098 .890196 .941176 rg
+n 0 186 439.2 -18 re f*
+1 1 1 rg
+n 0 168 439.2 -42 re f*
+.960784 .968627 .980392 rg
+n 0 126 439.2 -42 re f*
+1 1 1 rg
+n 0 84 439.2 -42 re f*
+.960784 .968627 .980392 rg
+n 0 42 439.2 -42 re f*
+0 0 0 rg
+BT /F2 7 Tf 12 TL ET
+BT 1 0 0 1 6 176 Tm (Rank) Tj T* ET
+BT 1 0 0 1 27.6 176 Tm (Volume Region) Tj T* ET
+BT 1 0 0 1 106.8 176 Tm (Bounds) Tj T* ET
+BT 1 0 0 1 250.8 176 Tm (Struts) Tj T* ET
+BT 1 0 0 1 283.2 176 Tm (Defects) Tj T* ET
+BT 1 0 0 1 319.2 176 Tm (Defect %) Tj T* ET
+BT 1 0 0 1 358.8 176 Tm (Ratio) Tj T* ET
+BT 1 0 0 1 387.6 176 Tm (Dominant) Tj T* ET
+BT /F1 7 Tf 12 TL ET
+BT 1 0 0 1 6 158 Tm (1) Tj T* ET
+q
+1 0 0 1 27.6 141 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (VOLUME_X_L) Tj T* (OW_Y_HIGH) Tj T* ET
+Q
+Q
+q
+1 0 0 1 106.8 129 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 26 Tm /F1 10 Tf 12 TL (x=61.80-296.82,) Tj T* (y=521.32-756.89,) Tj T* (z=17.33-745.45) Tj T* ET
+Q
+Q
+BT 1 0 0 1 250.8 158 Tm (2087) Tj T* ET
+BT 1 0 0 1 283.2 158 Tm (220) Tj T* ET
+BT 1 0 0 1 319.2 158 Tm (10.54%) Tj T* ET
+BT 1 0 0 1 358.8 158 Tm (1.60) Tj T* ET
+BT 1 0 0 1 387.6 158 Tm (Missing) Tj T* ET
+BT 1 0 0 1 6 116 Tm (2) Tj T* ET
+q
+1 0 0 1 27.6 87 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 26 Tm /F1 10 Tf 12 TL (VOLUME_X_) Tj T* (HIGH_Y_HIG) Tj T* (H) Tj T* ET
+Q
+Q
+q
+1 0 0 1 106.8 87 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 26 Tm /F1 10 Tf 12 TL (x=531.85-766.88,) Tj T* (y=521.32-756.89,) Tj T* (z=17.33-745.45) Tj T* ET
+Q
+Q
+BT 1 0 0 1 250.8 116 Tm (2148) Tj T* ET
+BT 1 0 0 1 283.2 116 Tm (215) Tj T* ET
+BT 1 0 0 1 319.2 116 Tm (10.01%) Tj T* ET
+BT 1 0 0 1 358.8 116 Tm (1.52) Tj T* ET
+BT 1 0 0 1 387.6 116 Tm (Missing) Tj T* ET
+BT 1 0 0 1 6 74 Tm (3) Tj T* ET
+q
+1 0 0 1 27.6 45 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 26 Tm /F1 10 Tf 12 TL (VOLUME_X_) Tj T* (MIDDLE_Y_HI) Tj T* (GH) Tj T* ET
+Q
+Q
+q
+1 0 0 1 106.8 45 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 26 Tm /F1 10 Tf 12 TL (x=296.82-531.85,) Tj T* (y=521.32-756.89,) Tj T* (z=17.33-745.45) Tj T* ET
+Q
+Q
+BT 1 0 0 1 250.8 74 Tm (2091) Tj T* ET
+BT 1 0 0 1 283.2 74 Tm (179) Tj T* ET
+BT 1 0 0 1 319.2 74 Tm (8.56%) Tj T* ET
+BT 1 0 0 1 358.8 74 Tm (1.30) Tj T* ET
+BT 1 0 0 1 387.6 74 Tm (Missing) Tj T* ET
+BT 1 0 0 1 6 32 Tm (4) Tj T* ET
+q
+1 0 0 1 27.6 3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 26 Tm /F1 10 Tf 12 TL (VOLUME_X_) Tj T* (MIDDLE_Y_L) Tj T* (OW) Tj T* ET
+Q
+Q
+q
+1 0 0 1 106.8 3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 26 Tm /F1 10 Tf 12 TL (x=296.82-531.85,) Tj T* (y=50.17-285.74,) Tj T* (z=17.33-745.45) Tj T* ET
+Q
+Q
+BT 1 0 0 1 250.8 32 Tm (1998) Tj T* ET
+BT 1 0 0 1 283.2 32 Tm (127) Tj T* ET
+BT 1 0 0 1 319.2 32 Tm (6.36%) Tj T* ET
+BT 1 0 0 1 358.8 32 Tm (0.97) Tj T* ET
+BT 1 0 0 1 387.6 32 Tm (Thinned) Tj T* ET
+q
+1 J
+1 j
+.501961 .501961 .501961 RG
+.35 w
+n 0 186 m 439.2 186 l S
+n 0 0 m 0 186 l S
+n 439.2 0 m 439.2 186 l S
+n 0 0 m 439.2 0 l S
+n 0 168 m 439.2 168 l S
+n 0 126 m 439.2 126 l S
+n 0 84 m 439.2 84 l S
+n 0 42 m 439.2 42 l S
+n 21.6 0 m 21.6 186 l S
+n 100.8 0 m 100.8 186 l S
+n 244.8 0 m 244.8 186 l S
+n 277.2 0 m 277.2 186 l S
+n 313.2 0 m 313.2 186 l S
+n 352.8 0 m 352.8 186 l S
+n 381.6 0 m 381.6 186 l S
+Q
+Q
+Q
+ 
+endstream
+endobj
+17 0 obj
+<<
+/Length 5037
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+q
+BT /F1 8 Tf 9.6 TL ET
+.333333 .333333 .333333 rg
+BT 1 0 0 1 293.324 25.2 Tm (Page 5) Tj T* ET
+Q
+q
+1 0 0 1 86.4 507.6 cm
+q
+.85098 .890196 .941176 rg
+n 0 228 439.2 -18 re f*
+1 1 1 rg
+n 0 210 439.2 -42 re f*
+.960784 .968627 .980392 rg
+n 0 168 439.2 -42 re f*
+1 1 1 rg
+n 0 126 439.2 -42 re f*
+.960784 .968627 .980392 rg
+n 0 84 439.2 -42 re f*
+1 1 1 rg
+n 0 42 439.2 -42 re f*
+0 0 0 rg
+BT /F2 7 Tf 12 TL ET
+BT 1 0 0 1 6 218 Tm (Rank) Tj T* ET
+BT 1 0 0 1 27.6 218 Tm (Volume Region) Tj T* ET
+BT 1 0 0 1 106.8 218 Tm (Bounds) Tj T* ET
+BT 1 0 0 1 250.8 218 Tm (Struts) Tj T* ET
+BT 1 0 0 1 283.2 218 Tm (Defects) Tj T* ET
+BT 1 0 0 1 319.2 218 Tm (Defect %) Tj T* ET
+BT 1 0 0 1 358.8 218 Tm (Ratio) Tj T* ET
+BT 1 0 0 1 387.6 218 Tm (Dominant) Tj T* ET
+BT /F1 7 Tf 12 TL ET
+BT 1 0 0 1 6 200 Tm (5) Tj T* ET
+q
+1 0 0 1 27.6 183 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (VOLUME_X_) Tj T* (HIGH_Y_LOW) Tj T* ET
+Q
+Q
+q
+1 0 0 1 106.8 171 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 26 Tm /F1 10 Tf 12 TL (x=531.85-766.88,) Tj T* (y=50.17-285.74,) Tj T* (z=17.33-745.45) Tj T* ET
+Q
+Q
+BT 1 0 0 1 250.8 200 Tm (2031) Tj T* ET
+BT 1 0 0 1 283.2 200 Tm (122) Tj T* ET
+BT 1 0 0 1 319.2 200 Tm (6.01%) Tj T* ET
+BT 1 0 0 1 358.8 200 Tm (0.91) Tj T* ET
+BT 1 0 0 1 387.6 200 Tm (Bent) Tj T* ET
+BT 1 0 0 1 6 158 Tm (6) Tj T* ET
+q
+1 0 0 1 27.6 141 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (VOLUME_X_L) Tj T* (OW_Y_LOW) Tj T* ET
+Q
+Q
+q
+1 0 0 1 106.8 129 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 26 Tm /F1 10 Tf 12 TL (x=61.80-296.82,) Tj T* (y=50.17-285.74,) Tj T* (z=17.33-745.45) Tj T* ET
+Q
+Q
+BT 1 0 0 1 250.8 158 Tm (2066) Tj T* ET
+BT 1 0 0 1 283.2 158 Tm (114) Tj T* ET
+BT 1 0 0 1 319.2 158 Tm (5.52%) Tj T* ET
+BT 1 0 0 1 358.8 158 Tm (0.84) Tj T* ET
+BT 1 0 0 1 387.6 158 Tm (Bent) Tj T* ET
+BT 1 0 0 1 6 116 Tm (7) Tj T* ET
+q
+1 0 0 1 27.6 87 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 26 Tm /F1 10 Tf 12 TL (VOLUME_X_L) Tj T* (OW_Y_MIDDL) Tj T* (E) Tj T* ET
+Q
+Q
+q
+1 0 0 1 106.8 87 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 26 Tm /F1 10 Tf 12 TL (x=61.80-296.82,) Tj T* (y=285.74-521.32,) Tj T* (z=17.33-745.45) Tj T* ET
+Q
+Q
+BT 1 0 0 1 250.8 116 Tm (1994) Tj T* ET
+BT 1 0 0 1 283.2 116 Tm (82) Tj T* ET
+BT 1 0 0 1 319.2 116 Tm (4.11%) Tj T* ET
+BT 1 0 0 1 358.8 116 Tm (0.63) Tj T* ET
+BT 1 0 0 1 387.6 116 Tm (Bent) Tj T* ET
+BT 1 0 0 1 6 74 Tm (8) Tj T* ET
+q
+1 0 0 1 27.6 45 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 26 Tm /F1 10 Tf 12 TL (VOLUME_X_) Tj T* (MIDDLE_Y_MI) Tj T* (DDLE) Tj T* ET
+Q
+Q
+q
+1 0 0 1 106.8 45 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 26 Tm /F1 10 Tf 12 TL (x=296.82-531.85,) Tj T* (y=285.74-521.32,) Tj T* (z=17.33-745.45) Tj T* ET
+Q
+Q
+BT 1 0 0 1 250.8 74 Tm (2026) Tj T* ET
+BT 1 0 0 1 283.2 74 Tm (81) Tj T* ET
+BT 1 0 0 1 319.2 74 Tm (4.00%) Tj T* ET
+BT 1 0 0 1 358.8 74 Tm (0.61) Tj T* ET
+BT 1 0 0 1 387.6 74 Tm (Bent) Tj T* ET
+BT 1 0 0 1 6 32 Tm (9) Tj T* ET
+q
+1 0 0 1 27.6 3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 26 Tm /F1 10 Tf 12 TL (VOLUME_X_) Tj T* (HIGH_Y_MID) Tj T* (DLE) Tj T* ET
+Q
+Q
+q
+1 0 0 1 106.8 3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 26 Tm /F1 10 Tf 12 TL (x=531.85-766.88,) Tj T* (y=285.74-521.32,) Tj T* (z=17.33-745.45) Tj T* ET
+Q
+Q
+BT 1 0 0 1 250.8 32 Tm (2027) Tj T* ET
+BT 1 0 0 1 283.2 32 Tm (75) Tj T* ET
+BT 1 0 0 1 319.2 32 Tm (3.70%) Tj T* ET
+BT 1 0 0 1 358.8 32 Tm (0.56) Tj T* ET
+BT 1 0 0 1 387.6 32 Tm (Bent) Tj T* ET
+q
+1 J
+1 j
+.501961 .501961 .501961 RG
+.35 w
+n 0 228 m 439.2 228 l S
+n 0 210 m 0 228 l S
+n 0 0 m 0 210 l S
+n 439.2 210 m 439.2 228 l S
+n 439.2 0 m 439.2 210 l S
+n 0 0 m 439.2 0 l S
+n 0 210 m 439.2 210 l S
+n 21.6 210 m 21.6 228 l S
+n 100.8 210 m 100.8 228 l S
+n 244.8 210 m 244.8 228 l S
+n 277.2 210 m 277.2 228 l S
+n 313.2 210 m 313.2 228 l S
+n 352.8 210 m 352.8 228 l S
+n 381.6 210 m 381.6 228 l S
+n 0 168 m 439.2 168 l S
+n 0 126 m 439.2 126 l S
+n 0 84 m 439.2 84 l S
+n 0 42 m 439.2 42 l S
+n 21.6 0 m 21.6 210 l S
+n 100.8 0 m 100.8 210 l S
+n 244.8 0 m 244.8 210 l S
+n 277.2 0 m 277.2 210 l S
+n 313.2 0 m 313.2 210 l S
+n 352.8 0 m 352.8 210 l S
+n 381.6 0 m 381.6 210 l S
+Q
+Q
+Q
+q
+1 0 0 1 52.8 499.6 cm
+Q
+q
+1 0 0 1 52.8 469.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 14 Tf 18 TL (Highly Concentrated Volumetric Regions) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 439.6 cm
+q
+BT 1 0 0 1 0 14 Tm 12 TL /F2 10 Tf 0 0 0 rg (VOLUME_X_LOW_Y_HIGH) Tj /F1 10 Tf (: 220/2087 defects \(10.54%\), ratio 1.60, dominant Missing. Counts: missing=130,) Tj T* (broken=24, bent=23, thinned=43. Flagged by relative concentration threshold.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 409.6 cm
+q
+BT 1 0 0 1 0 14 Tm 12 TL /F2 10 Tf 0 0 0 rg (VOLUME_X_HIGH_Y_HIGH) Tj /F1 10 Tf (: 215/2148 defects \(10.01%\), ratio 1.52, dominant Missing. Counts: missing=122,) Tj T* (broken=29, bent=30, thinned=34. Flagged by relative concentration threshold.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 379.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 14 Tf 18 TL (Comparison of Surface and Volume Findings) Tj T* ET
+Q
+Q
+q
+1 0 0 1 52.8 349.6 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (Surface and volume results are reported as separate normalized analyses. No internal volumetric-region face was) Tj T* (created or evaluated.) Tj T* ET
+Q
+Q
+ 
+endstream
+endobj
+xref
+0 18
+0000000000 65535 f 
+0000000061 00000 n 
+0000000112 00000 n 
+0000000219 00000 n 
+0000000331 00000 n 
+0000000450 00000 n 
+0000000645 00000 n 
+0000000840 00000 n 
+0000001035 00000 n 
+0000001230 00000 n 
+0000001425 00000 n 
+0000001495 00000 n 
+0000001811 00000 n 
+0000001895 00000 n 
+0000008915 00000 n 
+0000014912 00000 n 
+0000020859 00000 n 
+0000028945 00000 n 
+trailer
+<<
+/ID 
+[<76b22c431aeefe7eb714d60e1f56cc72><76b22c431aeefe7eb714d60e1f56cc72>]
+% ReportLab generated PDF document -- digest (opensource)
+
+/Info 11 0 R
+/Root 10 0 R
+/Size 18
+>>
+startxref
+34034
+%%EOF
