@@ -31,24 +31,33 @@ from scipy import ndimage as ndi
 from scipy.spatial import cKDTree
 from skimage.morphology import skeletonize
 
-from config import ROOT, STK, BASE, DESIGN_JSON as GT
+from config import (
+    ROOT, STK, BASE, DESIGN_JSON as GT,
+    VOXEL_UM as UM, STRUT_RADIUS_VOX,
+    MISSING_FRAC, GAP_FRAC, THIN_OUTLIER_K, BENT_RADIUS_MULT,
+    SNAP_R_VOX, METAL_R_VOX,
+)
 MASK = STK / f"{BASE}_segmented_clean.tif"
 RAW = STK / f"{BASE}.tif"
 SKELC = STK / f"{BASE}_segmented_clean.skelcoords.npz"
 OUT = STK / f"{BASE}_unified_defects_accurate.json"
 
 CONN = np.ones((3, 3, 3), int)
-UM = 58.1
+# Graph-cleanup geometry (node merging / spur pruning / min strut length) shapes
+# the as-built graph itself, not the classification decision, and the same
+# constants are duplicated in skel_to_json.py, clean_and_compare.py, and
+# bent_struts.py. They stay hardcoded here rather than becoming a classification
+# "threshold": changing them means rebuilding the graph in all four places
+# consistently, which is a different, bigger operation than re-classifying.
 D_MERGE = 20.0
 SPUR_LEN = 30.0
 MIN_STRUT = 30.0
-STRUT_RADIUS = 424.0 / 2 / UM          # ~3.65 vox
-BENT_THR = STRUT_RADIUS
-SNAP_R = 14.0                          # snap design node to as-built node within this
-METAL_R = 11                           # else search this-radius ball for metal
-K_OUT = 3.0
-MISSING_FRAC = 0.15
-GAP_FRAC = 0.25
+STRUT_RADIUS = STRUT_RADIUS_VOX         # ~3.65 vox (config: LATTICE_STRUT_DIAMETER_UM / LATTICE_VOXEL_UM)
+BENT_THR = STRUT_RADIUS * BENT_RADIUS_MULT      # config: LATTICE_BENT_RADIUS_MULT
+SNAP_R = SNAP_R_VOX                     # config: LATTICE_SNAP_R_VOX
+METAL_R = METAL_R_VOX                   # config: LATTICE_METAL_R_VOX
+K_OUT = THIN_OUTLIER_K                  # config: LATTICE_THIN_OUTLIER_K
+# MISSING_FRAC, GAP_FRAC imported directly from config (LATTICE_MISSING_FRAC / LATTICE_GAP_FRAC)
 
 
 def longest_gap(hit):
@@ -169,12 +178,20 @@ def build_asbuilt_graph(mask):
         if clen(E[k]) < MIN_STRUT and d[E[k]["u"]] >= 3 and d[E[k]["v"]] >= 3:
             E.pop(k)
 
-    # bow per edge
-    edge_of = {}; bow = {}
+    # as-built radius per edge: same technique as skel_to_json.py Stage 3 (a
+    # 2x-downsampled distance transform, rescaled by 2.0 back to full-res voxel
+    # units) so this figure matches what the rest of the pipeline means by
+    # "thickness" rather than introducing a second definition of it.
+    m2 = mask[::2, ::2, ::2]
+    edt2 = ndi.distance_transform_edt(m2)
+
+    # bow + measured radius per edge
+    edge_of = {}; bow = {}; thick = {}
     for e in E.values():
         p0, p1 = NP[e["u"]], NP[e["v"]]
         Q = np.concatenate(e["vox"]).astype(float) if e["vox"] else np.empty((0, 3))
         b = 0.0
+        r = None
         if len(Q) >= 8:
             cen = Q.mean(0); X = Q - cen
             axis = np.linalg.svd(X, full_matrices=False)[2][0]
@@ -185,9 +202,14 @@ def build_asbuilt_graph(mask):
                 if 40 <= span <= 75:
                     tt = np.clip(((Qs - a0) @ ab) / float(ab @ ab), 0, 1)
                     b = float(np.linalg.norm(Qs - (a0 + tt[:, None] * ab), axis=1).max())
+        if len(Q):
+            qi = np.round(Q).astype(int)
+            qi = np.clip(qi, 0, np.array(mask.shape) - 1)
+            r = float(edt2[qi[:, 0] // 2, qi[:, 1] // 2, qi[:, 2] // 2].mean() * 2.0)
         key = (e["u"], e["v"])
-        edge_of[key] = True; bow[key] = b
-    return NP, edge_of, bow
+        edge_of[key] = True; bow[key] = b; thick[key] = r
+    del edt2, m2; gc.collect()
+    return NP, edge_of, bow, thick
 
 
 def main():
@@ -198,7 +220,7 @@ def main():
     shape = np.array(mask.shape)
 
     print("rebuilding as-built graph (cached skeleton) ...")
-    NP, edge_of, bow = build_asbuilt_graph(mask)
+    NP, edge_of, bow, thick = build_asbuilt_graph(mask)
     del mask; gc.collect()
     print(f"  as-built: {len(NP)} nodes, {len(edge_of)} struts")
 
@@ -216,7 +238,8 @@ def main():
     # design + affine registration to as-built nodes
     gt = json.load(open(GT))
     GP = np.array([j["position"] for j in gt["junctions"]], float)[:, ::-1]   # [x,y,z]->(z,y,x)
-    struts = [(s["junction0"], s["junction1"]) for s in gt["struts"]]
+    struts = [(s["junction0"], s["junction1"], s.get("id", i), s.get("thickness"))
+              for i, s in enumerate(gt["struts"])]
     tree = cKDTree(NP)
     T = None
     GPc = GP.copy()
@@ -232,10 +255,14 @@ def main():
     dd, idx = tree.query(GPc)
     anchor = np.full((len(GP), 3), np.nan)
     ab_node = np.full(len(GP), -1, int)
+    anchor_kind = ["absent"] * len(GP)
+    anchor_snap_dist = [None] * len(GP)
     n_snap = n_metal = n_absent = 0
     for i in range(len(GP)):
         if dd[i] < SNAP_R:
             anchor[i] = NP[idx[i]]; ab_node[i] = idx[i]; n_snap += 1
+            anchor_kind[i] = "snapped_to_asbuilt_node"
+            anchor_snap_dist[i] = float(dd[i])
         else:
             c = np.round(GPc[i]).astype(int)
             lo = np.maximum(c - METAL_R, 0); hi = np.minimum(c + METAL_R + 1, shape)
@@ -244,20 +271,50 @@ def main():
                 zz, yy, xx = np.where(sub)
                 anchor[i] = [lo[0] + zz.mean(), lo[1] + yy.mean(), lo[2] + xx.mean()]
                 n_metal += 1
+                anchor_kind[i] = "local_metal_centroid"
             else:
                 n_absent += 1
+                anchor_kind[i] = "absent"
     print(f"  anchors: {n_snap} snapped to as-built node, {n_metal} to local metal, {n_absent} absent")
 
     # classify each designed strut
     counts = defaultdict(int)
     out_struts = []
-    for a, b in struts:
+    for a, b, sid, design_thickness in struts:
         na, nb = ab_node[a], ab_node[b]
         pa, pb = anchor[a], anchor[b]
+        evidence = {
+            "junction_a_anchor": anchor_kind[a],
+            "junction_b_anchor": anchor_kind[b],
+            "junction_a_snap_dist_vox": anchor_snap_dist[a],
+            "junction_b_snap_dist_vox": anchor_snap_dist[b],
+        }
         if np.isnan(pa).any() or np.isnan(pb).any():
             v = "missing"                    # a node region has no metal at all
+            evidence["reason"] = "no_metal_at_anchor"
         elif na >= 0 and nb >= 0 and (min(na, nb), max(na, nb)) in edge_of:
             key = (min(na, nb), max(na, nb))
+            evidence.update({
+                "reason": "as_built_edge_matched",
+                "as_built_node_a": int(na),
+                "as_built_node_b": int(nb),
+                "bow_um": float(bow[key] * UM),
+                "bow_threshold_um": float(BENT_THR * UM),
+                "mean_density": float(dens_of[key]),
+                "density_cutoff": float(d_cut),
+                "density_median": float(dmed),
+                "density_mad_scaled": float(dsig),
+                "outlier_k": K_OUT,
+                # Measured via a 2x-downsampled distance transform along this
+                # edge's own centerline voxels (same method as skel_to_json.py).
+                # nominal_radius_um is the physical strut radius the pipeline's
+                # own thresholds (e.g. BENT) are computed against
+                # (config.STRUT_DIAMETER_UM/2) -- note this may differ from the
+                # design file's own nominal "thickness" field on this strut
+                # (see design_thickness above); both are reported as-is.
+                "measured_radius_um": float(thick[key] * UM) if thick[key] is not None else None,
+                "nominal_radius_um": float(STRUT_RADIUS * UM),
+            })
             if bow[key] > BENT_THR:
                 v = "bent"
             elif dens_of[key] < d_cut:
@@ -271,6 +328,13 @@ def main():
             pts = np.clip(pts, 0, shape - 1)
             hit = metal[pts[:, 0], pts[:, 1], pts[:, 2]][2:-2]
             frac = hit.mean(); gap = longest_gap(hit) / len(hit)
+            evidence.update({
+                "reason": "material_sample_between_anchors",
+                "metal_fraction": float(frac),
+                "missing_fraction_threshold": MISSING_FRAC,
+                "longest_gap_fraction": float(gap),
+                "gap_fraction_threshold": GAP_FRAC,
+            })
             if frac < MISSING_FRAC:
                 v = "missing"
             elif gap >= GAP_FRAC:
@@ -279,11 +343,14 @@ def main():
                 v = "present"
         counts[v] += 1
         # export in [x,y,z] scan coords (reverse zyx)
-        out_struts.append({"p0": [float(pa[2]), float(pa[1]), float(pa[0])] if not np.isnan(pa).any()
+        out_struts.append({"id": int(sid),
+                           "p0": [float(pa[2]), float(pa[1]), float(pa[0])] if not np.isnan(pa).any()
                            else [float(GPc[a][2]), float(GPc[a][1]), float(GPc[a][0])],
                            "p1": [float(pb[2]), float(pb[1]), float(pb[0])] if not np.isnan(pb).any()
                            else [float(GPc[b][2]), float(GPc[b][1]), float(GPc[b][0])],
-                           "verdict": v})
+                           "verdict": v,
+                           "design_thickness": design_thickness,
+                           "evidence": evidence})
 
     n = len(struts)
     print("\n=== ACCURATE UNIFIED DEFECTS (anchored to real metal) ===")

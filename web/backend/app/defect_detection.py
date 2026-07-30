@@ -12,13 +12,14 @@ through an LLM tool-call loop.
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
-from .store import job_dir, load_job, save_job
+from .store import job_dir, now, update_job
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _DD_ROOT = _REPO_ROOT / "analysis" / "defect_detection"
@@ -26,18 +27,68 @@ _SRC_ROOT = _REPO_ROOT / "web" / "src"
 
 if str(_SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(_SRC_ROOT))
+if str(_DD_ROOT) not in sys.path:
+    sys.path.insert(0, str(_DD_ROOT))
 
 import mcp_server as _segmentation_tools  # noqa: E402  (repo's web/src/mcp_server.py)
+import config as _dd_config  # noqa: E402  (analysis/defect_detection/config.py)
 
 STAGE_TIMEOUT_SECONDS = 3600
 
+# Classification thresholds that config.py exposes as env-overridable knobs
+# (analysis/defect_detection/config.py), keyed by the short name the chat
+# tools use -> (env var name, current default read from that same config
+# module). Single source of truth: if config.py's defaults change, these
+# follow automatically instead of drifting out of sync.
+TUNABLE_PARAMS: dict[str, tuple[str, float]] = {
+    "missing_frac": ("LATTICE_MISSING_FRAC", _dd_config.MISSING_FRAC),
+    "gap_frac": ("LATTICE_GAP_FRAC", _dd_config.GAP_FRAC),
+    "thin_outlier_k": ("LATTICE_THIN_OUTLIER_K", _dd_config.THIN_OUTLIER_K),
+    "bent_radius_mult": ("LATTICE_BENT_RADIUS_MULT", _dd_config.BENT_RADIUS_MULT),
+    "snap_r_vox": ("LATTICE_SNAP_R_VOX", _dd_config.SNAP_R_VOX),
+    "metal_r_vox": ("LATTICE_METAL_R_VOX", _dd_config.METAL_R_VOX),
+}
+DEFAULT_PARAMS: dict[str, float] = {name: default for name, (_, default) in TUNABLE_PARAMS.items()}
+
+
+def resolve_specimen_paths(job: dict) -> tuple[str, Path, str]:
+    """Derive (base, stk_dir, design_json_abs_path) for a job the same way
+    run_strut_defect_detection does, so a later rerun targets the exact same
+    working directory without needing the original call's arguments again."""
+    root = job_dir(job["id"])
+    tiff_item = next((f for f in job["files"] if f["kind"] == "tiff"), None)
+    design_item = next((f for f in job["files"] if f["kind"] == "json"), None)
+    if not tiff_item or not design_item:
+        raise ValueError("Job is missing a TIFF and/or design JSON input")
+    base = Path(tiff_item["path"]).stem
+    stk = root / "defects" / "tif_stacks"
+    design_json_abs = str((root / design_item["path"]).resolve())
+    return base, stk, design_json_abs
+
+
+def build_env(stk: Path, base: str, design_json_abs: str, overrides: dict[str, float] | None = None) -> dict[str, str]:
+    """Environment for a pipeline-script subprocess, with optional
+    classification-threshold overrides (see TUNABLE_PARAMS)."""
+    env = dict(os.environ)
+    env["LATTICE_STK"] = str(stk)
+    env["LATTICE_BASE"] = base
+    env["LATTICE_DESIGN_JSON"] = design_json_abs
+    env["PYTHONIOENCODING"] = "utf-8"
+    for name, value in (overrides or {}).items():
+        env_name, _ = TUNABLE_PARAMS[name]
+        env[env_name] = str(value)
+    return env
+
 
 def _set_defects(job_id: str, **fields: Any) -> None:
-    job = load_job(job_id)
-    defects = dict(job.get("defects") or {})
-    defects.update(fields)
-    job["defects"] = defects
-    save_job(job)
+    # Atomic (see store.update_job) -- this fires many times per pipeline
+    # run and can overlap a lingering tilt-check thread for another file.
+    def apply(current: dict[str, Any]) -> None:
+        defects = dict(current.get("defects") or {})
+        defects.update(fields)
+        current["defects"] = defects
+
+    update_job(job_id, apply)
 
 
 def _run_script(script: str, env: dict[str, str]) -> None:
@@ -51,6 +102,10 @@ def _run_script(script: str, env: dict[str, str]) -> None:
     )
     if proc.returncode != 0:
         raise RuntimeError(f"{script} failed: {(proc.stderr or proc.stdout)[-1500:]}")
+
+
+run_script = _run_script  # public alias for agent_tools.rerun_classification
+DD_ROOT = _DD_ROOT  # public alias: where the shared-output-path scripts write
 
 
 def run_strut_defect_detection(
@@ -75,11 +130,7 @@ def run_strut_defect_detection(
         if not raw_link.exists():
             raw_link.symlink_to((root / tiff_relative_path).resolve())
 
-        env = dict(os.environ)
-        env["LATTICE_STK"] = str(stk)
-        env["LATTICE_BASE"] = base
-        env["LATTICE_DESIGN_JSON"] = design_json_absolute_path
-        env["PYTHONIOENCODING"] = "utf-8"
+        env = build_env(stk, base, design_json_absolute_path)
 
         segmented = stk / f"{base}_segmented.tif"
         _segmentation_tools.segment_tiff(str(raw_link), str(segmented), adaptive=True)
@@ -121,13 +172,25 @@ def run_strut_defect_detection(
 
         destination_relative = "defects/classification.json"
         (root / destination_relative).write_bytes(classified.read_bytes())
+        payload = json.loads(classified.read_text(encoding="utf-8"))
 
+        initial_version = {
+            "id": 1,
+            "label": "initial (default thresholds)",
+            "path": destination_relative,
+            "params": dict(DEFAULT_PARAMS),
+            "counts": payload["meta"]["counts"],
+            "n": payload["meta"]["n"],
+            "createdAt": now(),
+        }
         _set_defects(
             job_id,
             status="complete",
             stage="complete",
             error=None,
             path=destination_relative,
+            versions=[initial_version],
+            activeVersionId=1,
         )
     except Exception as exc:
         _set_defects(job_id, status="failed", error=str(exc))

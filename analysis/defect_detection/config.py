@@ -34,6 +34,17 @@ VOXEL_UM = float(os.environ.get("LATTICE_VOXEL_UM", "58.1"))
 STRUT_DIAMETER_UM = float(os.environ.get("LATTICE_STRUT_DIAMETER_UM", "424.0"))
 STRUT_RADIUS_VOX = STRUT_DIAMETER_UM / 2 / VOXEL_UM      # ~3.65 vox
 
+# classification thresholds (analysis/defect_detection/unified_defects_accurate.py).
+# Defaults reproduce the values that were previously hardcoded in that script, so
+# running with no env vars set behaves exactly as before. Override any of these to
+# run a stricter/looser classification pass without editing code.
+MISSING_FRAC = float(os.environ.get("LATTICE_MISSING_FRAC", "0.15"))
+GAP_FRAC = float(os.environ.get("LATTICE_GAP_FRAC", "0.25"))
+THIN_OUTLIER_K = float(os.environ.get("LATTICE_THIN_OUTLIER_K", "3.0"))
+BENT_RADIUS_MULT = float(os.environ.get("LATTICE_BENT_RADIUS_MULT", "1.0"))
+SNAP_R_VOX = float(os.environ.get("LATTICE_SNAP_R_VOX", "14.0"))
+METAL_R_VOX = int(os.environ.get("LATTICE_METAL_R_VOX", "11"))
+
 # convenient derived paths (all scans keep this naming scheme)
 RAW = STK / f"{BASE}.tif"
 MASK = STK / f"{BASE}_segmented_clean.tif"

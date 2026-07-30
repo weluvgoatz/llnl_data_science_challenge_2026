@@ -7,12 +7,15 @@ import uuid
 from pathlib import Path
 from urllib.parse import quote
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import Body, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, StreamingResponse
+from starlette.concurrency import run_in_threadpool
 
-from .store import create_job, job_dir, load_job, safe_child, save_job
-from .workflow import check_and_correct_tilt, inspect_upload, render_tiff_slice, run_analysis
+from . import chat_store
+from .agents.orchestrator import handle_chat_turn
+from .store import create_job, job_dir, load_job, safe_child, update_job
+from .workflow import check_and_correct_tilt, inspect_upload, render_tiff_slice, start_analysis
 
 
 app = FastAPI(title="Lattice Lens API", version="0.1.0")
@@ -152,10 +155,24 @@ async def upload_files(job_id: str, files: list[UploadFile] = File(...)) -> dict
             path.unlink(missing_ok=True)
         raise HTTPException(400, str(exc)) from exc
 
-    job["files"].extend(record for _, record in staged)
-    job["state"] = "intake_ready"
-    job["error"] = None
-    save_job(job)
+    def apply(current: dict) -> None:
+        # Re-check state here too (not just the early check above) --
+        # atomic under update_job's lock, closing the gap between that
+        # check and this write where something else could have started
+        # analysis on this job in the meantime.
+        if current["state"] not in {"new", "intake_ready"}:
+            raise ValueError("Files cannot be changed after analysis starts")
+        current["files"].extend(record for _, record in staged)
+        current["state"] = "intake_ready"
+        current["error"] = None
+
+    try:
+        job = update_job(job_id, apply)
+    except ValueError as exc:
+        for path in destinations:
+            path.unlink(missing_ok=True)
+        raise HTTPException(409, str(exc)) from exc
+
     for _, record in staged:
         if record["kind"] == "tiff":
             threading.Thread(
@@ -210,13 +227,11 @@ async def get_corrected_slice(job_id: str, file_id: str, index: int = 0) -> Stre
 
 @app.post("/api/jobs/{job_id}/analysis", status_code=202)
 async def analyze(job_id: str) -> dict:
-    job = get_job_or_404(job_id)
-    if job["state"] not in {"intake_ready", "failed"}:
-        raise HTTPException(409, "Analysis is unavailable in the current state")
-    job["state"] = "analyzing"
-    job["error"] = None
-    save_job(job)
-    threading.Thread(target=run_analysis, args=(job_id,), daemon=True).start()
+    get_job_or_404(job_id)
+    try:
+        job = start_analysis(job_id)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
     return public_job(job)
 
 
@@ -251,3 +266,26 @@ async def report(job_id: str, download: bool = False):
     if download:
         return stream_file(path, "text/markdown", job["report"]["name"])
     return PlainTextResponse(path.read_text(encoding="utf-8"), media_type="text/markdown")
+
+
+@app.post("/api/jobs/{job_id}/chat")
+async def chat(job_id: str, payload: dict = Body(...)) -> dict:
+    get_job_or_404(job_id)
+    message = (payload.get("message") or "").strip()
+    if not message:
+        raise HTTPException(400, "message is required")
+    if not os.environ.get("OPENAI_API_KEY"):
+        raise HTTPException(503, "OPENAI_API_KEY is not configured on the server")
+    try:
+        # handle_chat_turn is a blocking (network + subprocess) call; run it
+        # off the event loop so it never blocks other requests (e.g. a
+        # concurrent job-status poll) while a subagent is working.
+        return await run_in_threadpool(handle_chat_turn, job_id, message)
+    except Exception as exc:
+        raise HTTPException(502, f"Chat orchestrator failed: {exc}") from exc
+
+
+@app.get("/api/jobs/{job_id}/chat")
+async def chat_history(job_id: str) -> dict:
+    get_job_or_404(job_id)
+    return {"turns": chat_store.load_audit(job_id)}

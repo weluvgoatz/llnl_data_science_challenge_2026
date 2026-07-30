@@ -2,27 +2,36 @@ import {
   Box,
   Check,
   ChevronLeft,
-  ChevronRight,
   Download,
   FileArchive,
   FileJson,
   FileText,
   LoaderCircle,
   Maximize2,
-  Microscope,
   Play,
   RotateCcw,
   TriangleAlert,
   UploadCloud,
   X,
 } from "lucide-react";
-import { DragEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { DragEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api";
+import { ChatPanel } from "./components/ChatPanel";
 import { StlViewer } from "./components/StlViewer";
 import { DefectViewer } from "./components/DefectViewer";
+import { DesignGraphViewer } from "./components/DesignGraphViewer";
 import { ZoomableImage } from "./components/ZoomableImage";
 import { VERDICT_COLORS, VERDICT_DESCRIPTIONS, VERDICT_LABELS, VERDICT_ORDER } from "./defects";
-import type { DefectClassification, DefectStage, InputFile, Job, StrutVerdict } from "./types";
+import type {
+  ChatTurn,
+  DefectClassification,
+  DefectStage,
+  InputFile,
+  Job,
+  MountedSurface,
+  StrutVerdict,
+  TimelineEntry,
+} from "./types";
 
 const DEFECT_STAGE_LABELS: Record<DefectStage, string> = {
   segmenting: "segmenting the scan",
@@ -34,21 +43,12 @@ const DEFECT_STAGE_LABELS: Record<DefectStage, string> = {
   complete: "finishing up",
 };
 
-const steps = [
-  { slug: "upload", label: "Upload", note: "Input data" },
-  { slug: "inspect", label: "Inspect", note: "3D & slices" },
-  { slug: "analysis", label: "Analysis", note: "Visual findings" },
-  { slug: "report", label: "Report", note: "NDE summary" },
-] as const;
-
-type StepSlug = (typeof steps)[number]["slug"];
-
-function allowedStep(job: Job | null) {
-  if (!job || job.state === "new") return 0;
-  if (job.state === "intake_ready" || job.state === "analyzing" || job.state === "failed") return 1;
-  if (job.state === "complete") return job.report ? 3 : 2;
-  return 0;
-}
+const SURFACE_LABELS: Record<MountedSurface["component"], string> = {
+  ModelViewer: "3D model",
+  DefectView: "Defect view",
+  ReportView: "Report",
+  DataViz: "Data",
+};
 
 function formatBytes(bytes: number) {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -72,13 +72,7 @@ function MarkdownPreview({ url }: { url: string }) {
   return <pre className="report-preview">{content}</pre>;
 }
 
-function UploadPage({
-  onComplete,
-  busy,
-}: {
-  onComplete: (files: File[]) => Promise<void>;
-  busy: boolean;
-}) {
+function UploadScreen({ onComplete, busy }: { onComplete: (files: File[]) => Promise<void>; busy: boolean }) {
   const [files, setFiles] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState("");
@@ -107,7 +101,7 @@ function UploadPage({
       <div className="page-heading centered">
         <span className="eyebrow">New inspection</span>
         <h1>Bring your lattice into focus.</h1>
-        <p>Upload one file or a matched set. We’ll validate the data before opening the workspace.</p>
+        <p>Upload one file or a matched set. Once they&rsquo;re in, just tell the agent what you want to see.</p>
       </div>
       <label
         className={`dropzone ${dragging ? "dragging" : ""}`}
@@ -124,17 +118,25 @@ function UploadPage({
           accept=".json,.tif,.tiff,.stl"
           onChange={(event) => addFiles(Array.from(event.target.files || []))}
         />
-        <div className="upload-mark"><UploadCloud size={27} /></div>
+        <div className="upload-mark">
+          <UploadCloud size={27} />
+        </div>
         <h2>Drop lattice files here</h2>
-        <p>or <span>browse your computer</span></p>
+        <p>
+          or <span>browse your computer</span>
+        </p>
         <small>JSON · TIFF stacks · STL meshes &nbsp;·&nbsp; 2 GB maximum per file</small>
       </label>
       {error && <div className="error-banner">{error}</div>}
       {files.length > 0 && (
         <div className="queue">
           <div className="queue-header">
-            <h3>Ready to upload <span>{files.length}</span></h3>
-            <button className="text-button" onClick={() => setFiles([])}>Clear all</button>
+            <h3>
+              Ready to upload <span>{files.length}</span>
+            </h3>
+            <button className="text-button" onClick={() => setFiles([])}>
+              Clear all
+            </button>
           </div>
           {files.map((file, index) => {
             const extension = file.name.split(".").pop()?.toLowerCase();
@@ -144,7 +146,9 @@ function UploadPage({
                 <div className={`file-glyph ${kind}`}>{fileIcon(kind)}</div>
                 <div className="file-copy">
                   <strong>{file.name}</strong>
-                  <span>{formatBytes(file.size)} · {kind.toUpperCase()}</span>
+                  <span>
+                    {formatBytes(file.size)} · {kind.toUpperCase()}
+                  </span>
                 </div>
                 <button
                   aria-label={`Remove ${file.name}`}
@@ -158,7 +162,7 @@ function UploadPage({
           })}
           <button className="primary-button wide" disabled={busy} onClick={() => onComplete(files)}>
             {busy ? <LoaderCircle className="spin" size={19} /> : <UploadCloud size={19} />}
-            {busy ? "Validating files…" : "Upload and open workspace"}
+            {busy ? "Validating files…" : "Upload"}
           </button>
         </div>
       )}
@@ -199,8 +203,8 @@ function TiltBanner({ file }: { file: InputFile }) {
   }
 }
 
-function TiffViewer({ file }: { file: InputFile }) {
-  const [index, setIndex] = useState(Math.floor((file.pageCount || 1) / 2));
+function TiffViewer({ file, initialIndex }: { file: InputFile; initialIndex?: number }) {
+  const [index, setIndex] = useState(initialIndex ?? Math.floor((file.pageCount || 1) / 2));
   const [focused, setFocused] = useState<"original" | "corrected" | null>(null);
   const max = Math.max((file.pageCount || 1) - 1, 0);
   const originalUrl = `${file.sliceUrl}?index=${index}`;
@@ -216,21 +220,13 @@ function TiffViewer({ file }: { file: InputFile }) {
         <div className="slice-compare">
           <div className="slice-pane">
             <span className="slice-pane-label">Original</span>
-            <button
-              className="slice-frame"
-              onClick={() => setFocused("original")}
-              aria-label={`Enlarge original ${caption}`}
-            >
+            <button className="slice-frame" onClick={() => setFocused("original")} aria-label={`Enlarge original ${caption}`}>
               <img src={originalUrl} alt={`Original ${caption}`} />
             </button>
           </div>
           <div className="slice-pane">
             <span className="slice-pane-label">Tilt-fixed</span>
-            <button
-              className="slice-frame"
-              onClick={() => setFocused("corrected")}
-              aria-label={`Enlarge tilt-fixed ${caption}`}
-            >
+            <button className="slice-frame" onClick={() => setFocused("corrected")} aria-label={`Enlarge tilt-fixed ${caption}`}>
               <img src={correctedUrl} alt={`Tilt-fixed ${caption}`} />
             </button>
           </div>
@@ -238,18 +234,27 @@ function TiffViewer({ file }: { file: InputFile }) {
       ) : (
         <button className="slice-frame" onClick={() => setFocused("original")} aria-label={`Enlarge ${caption}`}>
           <img src={originalUrl} alt={caption} />
-          <span className="viewer-hint"><Maximize2 size={13} /> Click to see the full frame</span>
+          <span className="viewer-hint">
+            <Maximize2 size={13} /> Click to see the full frame
+          </span>
         </button>
       )}
       <div className="slice-control">
-        <label>Slice <strong>{index + 1}</strong> of {max + 1}</label>
+        <label>
+          Slice <strong>{index + 1}</strong> of {max + 1}
+        </label>
         <input type="range" min="0" max={max} value={index} onChange={(e) => setIndex(Number(e.target.value))} />
       </div>
       {focused && focusedUrl && (
         <div className="lightbox" role="dialog" onClick={() => setFocused(null)}>
-          <button aria-label="Close image"><X /></button>
+          <button aria-label="Close image">
+            <X />
+          </button>
           <img src={focusedUrl} alt={caption} />
-          <strong>{focused === "corrected" ? "Tilt-fixed — " : comparing ? "Original — " : ""}{caption}</strong>
+          <strong>
+            {focused === "corrected" ? "Tilt-fixed — " : comparing ? "Original — " : ""}
+            {caption}
+          </strong>
         </div>
       )}
     </div>
@@ -261,15 +266,14 @@ function TiffCompareSection({ file }: { file: InputFile }) {
   const max = Math.max((file.pageCount || 1) - 1, 0);
   const originalUrl = `${file.sliceUrl}?index=${index}`;
   const correctedUrl = file.correctedSliceUrl ? `${file.correctedSliceUrl}?index=${index}` : null;
+  if (file.tiltStatus !== "corrected") return null;
 
   return (
     <section className="tiff-compare">
       <div className="page-heading">
         <span className="eyebrow">Tilt inspection</span>
         <h2>Original vs. tilt-corrected slices.</h2>
-        <p>Scroll or use the buttons to zoom, drag to pan once zoomed in, double-click to reset.</p>
       </div>
-      <TiltBanner file={file} />
       <div className="tiff-compare-grid">
         <div className="tiff-compare-pane">
           <span className="slice-pane-label">Original</span>
@@ -277,185 +281,144 @@ function TiffCompareSection({ file }: { file: InputFile }) {
         </div>
         <div className="tiff-compare-pane">
           <span className="slice-pane-label">Tilt-fixed</span>
-          {correctedUrl ? (
-            <ZoomableImage src={correctedUrl} alt={`Tilt-fixed slice ${index + 1} of ${file.name}`} />
-          ) : (
-            <div className="tiff-compare-empty">
-              {file.tiltStatus === "not_tilted"
-                ? "No meaningful tilt detected — the corrected slice would match the original."
-                : file.tiltStatus === "failed"
-                ? "Tilt check failed, so no corrected slice is available."
-                : "Checking for tilt…"}
-            </div>
-          )}
+          {correctedUrl && <ZoomableImage src={correctedUrl} alt={`Tilt-fixed slice ${index + 1} of ${file.name}`} />}
         </div>
       </div>
       <div className="slice-control">
-        <label>Slice <strong>{index + 1}</strong> of {max + 1}</label>
+        <label>
+          Slice <strong>{index + 1}</strong> of {max + 1}
+        </label>
         <input type="range" min="0" max={max} value={index} onChange={(event) => setIndex(Number(event.target.value))} />
       </div>
     </section>
   );
 }
 
-function InspectPage({
+// The default/fallback surface: nothing mounted, just the uploaded files.
+// Clicking a file previews it directly (a click is a request too, just
+// routed locally instead of through the agent) -- chat handles everything
+// derived or more complex; this handles the obvious case fast.
+function FileListSurface({
   job,
+  onPreview,
   onAnalyze,
   onAddFiles,
   addingFiles,
 }: {
   job: Job;
-  onAnalyze: () => Promise<void>;
+  onPreview: (file: InputFile) => void;
+  onAnalyze: () => void;
   onAddFiles: (files: File[]) => Promise<void>;
   addingFiles: boolean;
 }) {
-  const visualFiles = job.files.filter((file) => file.kind !== "json");
-  const [selectedId, setSelectedId] = useState(visualFiles[0]?.id || job.files[0]?.id);
-  const selected = job.files.find((file) => file.id === selectedId) || job.files[0];
   const working = job.state === "analyzing";
-  const canAddFiles = job.state === "intake_ready" && !working;
-  const tiffFile = job.files.find((file) => file.kind === "tiff");
+  const canAddFiles = job.state === "intake_ready" && !addingFiles;
   return (
-    <section className="page">
-      <div className="page-heading split">
-        <div>
-          <span className="eyebrow">Input workspace</span>
-          <h1>Inspect the source data.</h1>
-          <p>Confirm orientation and coverage before starting the agentic analysis.</p>
-        </div>
-        <button className="primary-button" disabled={working} onClick={onAnalyze}>
-          {working ? <LoaderCircle className="spin" size={18} /> : <Play size={18} />}
-          {working ? "Analysis running…" : job.state === "failed" ? "Retry analysis" : "Run analysis"}
-        </button>
+    <div className="file-list-surface">
+      <div className="page-heading centered">
+        <span className="eyebrow">Workspace</span>
+        <h1>
+          {job.files.length} file{job.files.length === 1 ? "" : "s"} ready.
+        </h1>
+        <p>
+          Ask the agent to show a model, chart, or the defect map &mdash; or click a file below to preview it
+          directly.
+        </p>
       </div>
-      {job.error && <div className="error-banner">{job.error}</div>}
-      <div className="workspace-grid">
-        <aside className="file-rail">
-          <h3>Inputs <span>{job.files.length}</span></h3>
-          {job.files.map((file) => (
-            <button
-              className={`rail-file ${selected?.id === file.id ? "active" : ""}`}
-              key={file.id}
-              onClick={() => setSelectedId(file.id)}
-            >
-              <span className={`file-glyph ${file.kind}`}>{fileIcon(file.kind)}</span>
-              <span><strong>{file.name}</strong><small>{file.summary}</small></span>
-            </button>
-          ))}
-          {canAddFiles && (
-            <label className={`rail-add ${addingFiles ? "disabled" : ""}`}>
-              <input
-                type="file"
-                multiple
-                accept=".json,.tif,.tiff,.stl"
-                disabled={addingFiles}
-                onChange={(event) => {
-                  const chosen = Array.from(event.target.files || []);
-                  event.target.value = "";
-                  if (chosen.length) onAddFiles(chosen);
-                }}
-              />
-              {addingFiles ? <LoaderCircle className="spin" size={16} /> : <UploadCloud size={16} />}
-              <span>{addingFiles ? "Uploading…" : "Add TIFF or JSON"}</span>
-            </label>
-          )}
-        </aside>
-        <div className="viewer-panel">
-          <div className="viewer-title">
-            <div><strong>{selected.name}</strong><span>{selected.summary}</span></div>
-            <span className="format-pill">{selected.kind.toUpperCase()}</span>
+      {working && (
+        <div className="hint-banner">
+          <LoaderCircle className="spin" size={14} /> Analysis is running in the background &mdash; ask me how
+          it&rsquo;s going, or check back here.
+        </div>
+      )}
+      <div className="file-grid">
+        {job.files.map((file) => (
+          <button className="file-card" key={file.id} onClick={() => onPreview(file)}>
+            <span className={`file-glyph ${file.kind}`}>{fileIcon(file.kind)}</span>
+            <strong>{file.name}</strong>
+            <span>{file.summary}</span>
+          </button>
+        ))}
+        {canAddFiles && (
+          <label className="file-card file-card-add">
+            <input
+              type="file"
+              multiple
+              accept=".json,.tif,.tiff,.stl"
+              disabled={addingFiles}
+              onChange={(event) => {
+                const chosen = Array.from(event.target.files || []);
+                event.target.value = "";
+                if (chosen.length) onAddFiles(chosen);
+              }}
+            />
+            {addingFiles ? <LoaderCircle className="spin" size={20} /> : <UploadCloud size={20} />}
+            <strong>{addingFiles ? "Uploading…" : "Add a file"}</strong>
+          </label>
+        )}
+      </div>
+      {job.state === "intake_ready" &&
+        job.files.some((file) => file.kind === "tiff") &&
+        !job.files.some((file) => file.kind === "json") && (
+          <div className="hint-banner">
+            <TriangleAlert size={14} /> No design JSON uploaded &mdash; defect detection will be skipped this run
+            (the rest of the analysis will still complete). Add one first if you want strut classification.
           </div>
-          {selected.kind === "stl" && <StlViewer url={selected.contentUrl} />}
-          {selected.kind === "tiff" && <TiffViewer file={selected} />}
-          {selected.kind === "json" && (
-            <div className="json-placeholder">
-              <FileJson size={42} />
-              <h2>JSON validated</h2>
-              <p>Geometry rendering is intentionally deferred. This file will be available to the analysis harness.</p>
-              <a href={selected.contentUrl} target="_blank" rel="noreferrer">Open source JSON</a>
-            </div>
-          )}
-          {working && (
-            <div className="analysis-overlay">
-              <LoaderCircle className="spin" size={30} />
-              <strong>Codex workflow in progress</strong>
-              <span>
-                {job.defects?.status === "running" && job.defects.stage
-                  ? `Detecting strut defects — ${DEFECT_STAGE_LABELS[job.defects.stage]}…`
-                  : "Preparing visual findings and the NDE report…"}
-              </span>
-            </div>
-          )}
-        </div>
-      </div>
-      {tiffFile && <TiffCompareSection file={tiffFile} />}
-    </section>
+        )}
+      {(job.state === "intake_ready" || job.state === "failed") && (
+        <button className="secondary-button" onClick={onAnalyze}>
+          <Play size={16} /> {job.state === "failed" ? "Retry analysis" : "Run analysis"}
+        </button>
+      )}
+    </div>
   );
 }
 
-function DefectSection({ job }: { job: Job }) {
-  const [data, setData] = useState<DefectClassification | null>(null);
-  const [error, setError] = useState("");
-  const [visible, setVisible] = useState<Set<StrutVerdict>>(
-    () => new Set(VERDICT_ORDER.filter((verdict) => verdict !== "present")),
-  );
-  const dataUrl = job.defects?.status === "complete" ? job.defects.dataUrl : null;
-
-  useEffect(() => {
-    if (!dataUrl) return;
-    setError("");
-    setData(null);
-    fetch(dataUrl)
-      .then((response) => {
-        if (!response.ok) throw new Error(`Request failed (${response.status})`);
-        return response.json();
-      })
-      .then(setData)
-      .catch(() => setError("The defect classification could not be loaded."));
-  }, [dataUrl]);
-
-  const toggle = (verdict: StrutVerdict) => {
-    setVisible((current) => {
-      const next = new Set(current);
-      if (next.has(verdict)) next.delete(verdict);
-      else next.add(verdict);
-      return next;
-    });
-  };
-
-  if (!job.defects) return null;
-
+function DefectSurface({
+  job,
+  classification,
+  loadError,
+  visible,
+  onToggle,
+  selectedStrutIds,
+  onSelectStrut,
+}: {
+  job: Job;
+  classification: DefectClassification | null;
+  loadError: string;
+  visible: Set<StrutVerdict>;
+  onToggle: (verdict: StrutVerdict) => void;
+  selectedStrutIds: Set<number>;
+  onSelectStrut: (strutId: number) => void;
+}) {
+  if (job.defects?.status === "failed") {
+    return <div className="error-banner">{job.defects.error || "The defect-detection pipeline failed."}</div>;
+  }
   return (
-    <section className="defect-section">
-      <div className="page-heading">
-        <span className="eyebrow">Strut error detection</span>
-        <h1>Every designed strut, checked against the scan.</h1>
-        {data ? (
-          <p>
-            {(data.meta.n - (data.meta.counts.present || 0)).toLocaleString()} of{" "}
-            {data.meta.n.toLocaleString()} struts show a defect. Drag to rotate, scroll to zoom — click a
-            category below to show or hide it.
-          </p>
-        ) : (
-          <p>Loading the classification produced by the strut error detection pipeline…</p>
-        )}
-      </div>
-      {job.defects.status === "failed" && (
-        <div className="error-banner">{job.defects.error || "The defect-detection pipeline failed."}</div>
-      )}
-      {error && <div className="error-banner">{error}</div>}
-      {data && (
+    <div className="defects-view">
+      {loadError && <div className="error-banner">{loadError}</div>}
+      {classification ? (
         <>
-          <DefectViewer struts={data.struts} visibleVerdicts={visible} />
+          <p className="defects-summary">
+            {(classification.meta.n - (classification.meta.counts.present || 0)).toLocaleString()} of{" "}
+            {classification.meta.n.toLocaleString()} struts show a defect. Drag to rotate, scroll to zoom, click a
+            strut to select it, or toggle a category below.
+          </p>
+          <DefectViewer
+            struts={classification.struts}
+            visibleVerdicts={visible}
+            selectedStrutIds={selectedStrutIds}
+            onSelectStrut={onSelectStrut}
+          />
           <div className="defect-gallery">
             {VERDICT_ORDER.map((verdict) => {
-              const count = data.meta.counts[verdict] || 0;
-              const percent = data.meta.n ? ((100 * count) / data.meta.n).toFixed(2) : "0.00";
+              const count = classification.meta.counts[verdict] || 0;
+              const percent = classification.meta.n ? ((100 * count) / classification.meta.n).toFixed(2) : "0.00";
               return (
                 <button
                   key={verdict}
                   className={`defect-card ${visible.has(verdict) ? "active" : ""}`}
-                  onClick={() => toggle(verdict)}
+                  onClick={() => onToggle(verdict)}
                   aria-pressed={visible.has(verdict)}
                 >
                   <span className="defect-swatch" style={{ background: VERDICT_COLORS[verdict] }} />
@@ -471,115 +434,174 @@ function DefectSection({ job }: { job: Job }) {
             })}
           </div>
         </>
+      ) : (
+        <p>Loading the classification produced by the strut error detection pipeline…</p>
       )}
-    </section>
+    </div>
   );
 }
 
-function AnalysisPage({ job }: { job: Job }) {
+function ImageArtifact({ artifact }: { artifact: Job["artifacts"][number] | undefined }) {
+  if (!artifact) {
+    return (
+      <div className="empty-state">
+        <h2>Image not found</h2>
+        <p>The referenced artifact isn&rsquo;t in this job&rsquo;s list yet.</p>
+      </div>
+    );
+  }
   return (
-    <section className="page">
-      <DefectSection job={job} />
-    </section>
+    <div className="artifact-solo">
+      <img src={artifact.downloadUrl} alt={artifact.caption} />
+      <div className="artifact-solo-caption">
+        <strong>{artifact.caption}</strong>
+        <a href={artifact.downloadUrl} download>
+          <Download size={14} /> Download
+        </a>
+      </div>
+    </div>
   );
 }
 
-function ReportPage({ job, onReset }: { job: Job; onReset: () => void }) {
+function ModelSurface({ file, artifact }: { file?: InputFile; artifact?: Job["artifacts"][number] }) {
+  const url = file?.contentUrl ?? artifact?.downloadUrl;
+  if (!url) {
+    return (
+      <div className="empty-state">
+        <h2>Model not found</h2>
+        <p>The referenced file or artifact isn&rsquo;t in this job&rsquo;s list yet.</p>
+      </div>
+    );
+  }
+  return <StlViewer url={url} />;
+}
+
+function DataVizSurface({ file, artifact }: { file?: InputFile; artifact?: Job["artifacts"][number] }) {
+  if (artifact) {
+    if (artifact.mediaType === "image/png") return <ImageArtifact artifact={artifact} />;
+    return (
+      <div className="empty-state">
+        <FileArchive size={42} />
+        <h2>{artifact.name}</h2>
+        <p>No in-browser viewer for this file type.</p>
+        <a href={artifact.downloadUrl} download>
+          <Download size={14} style={{ marginRight: 6 }} />
+          Download {artifact.name}
+        </a>
+      </div>
+    );
+  }
+  if (file?.kind === "tiff") {
+    return (
+      <>
+        <TiffViewer file={file} />
+        <TiffCompareSection file={file} />
+      </>
+    );
+  }
+  if (file?.kind === "json") {
+    return <DesignGraphViewer url={file.contentUrl} />;
+  }
   return (
-    <section className="page">
-      <div className="page-heading split">
-        <div>
-          <span className="eyebrow success"><Check size={13} /> Workflow complete</span>
-          <h1>Your report is ready.</h1>
-          <p>A traceable summary of the uploaded data and generated analysis.</p>
-        </div>
-        {job.report && (
-          <a className="primary-button" href={job.report.downloadUrl} download>
-            <Download size={18} /> Download report
-          </a>
-        )}
+    <div className="empty-state">
+      <h2>Nothing to show</h2>
+      <p>The referenced file or artifact isn&rsquo;t in this job&rsquo;s list yet.</p>
+    </div>
+  );
+}
+
+function ReportSurface({ job }: { job: Job }) {
+  if (!job.report) {
+    return (
+      <div className="empty-state">
+        <h2>No report yet</h2>
+        <p>The report is generated once analysis completes.</p>
       </div>
-      <div className="report-layout">
-        <div className="report-document">
-          <div className="document-bar"><FileText size={18} /><strong>{job.report?.name}</strong><span>Markdown</span></div>
-          {job.report && <MarkdownPreview url={job.report.previewUrl} />}
+    );
+  }
+  return (
+    <div className="report-layout">
+      <div className="report-document">
+        <div className="document-bar">
+          <FileText size={18} />
+          <strong>{job.report.name}</strong>
+          <span>Markdown</span>
         </div>
-        <aside className="report-summary">
-          <Microscope size={27} />
-          <h2>Inspection complete</h2>
-          <dl>
-            <div><dt>Input files</dt><dd>{job.files.length}</dd></div>
-            <div><dt>Visual outputs</dt><dd>{job.artifacts.length}</dd></div>
-            <div><dt>Job ID</dt><dd>{job.id.slice(0, 8)}</dd></div>
-          </dl>
-          <button className="secondary-button wide" onClick={onReset}>Start a new inspection</button>
-        </aside>
+        <MarkdownPreview url={job.report.previewUrl} />
       </div>
-    </section>
+      <aside className="report-summary">
+        <dl>
+          <div>
+            <dt>Input files</dt>
+            <dd>{job.files.length}</dd>
+          </div>
+          <div>
+            <dt>Visual outputs</dt>
+            <dd>{job.artifacts.length}</dd>
+          </div>
+          <div>
+            <dt>Job ID</dt>
+            <dd>{job.id.slice(0, 8)}</dd>
+          </div>
+        </dl>
+        <a className="primary-button wide" href={job.report.downloadUrl} download>
+          <Download size={18} /> Download report
+        </a>
+      </aside>
+    </div>
   );
 }
 
 export default function App() {
-  const readHashPath = () => window.location.hash.slice(1) || "/";
-  const [pathname, setPathname] = useState(readHashPath);
-  const navigate = useCallback((target: string, options?: { replace?: boolean }) => {
-    const url = `${window.location.pathname}${window.location.search}#${target}`;
-    if (options?.replace) window.history.replaceState(null, "", url);
-    else window.history.pushState(null, "", url);
-    setPathname(target);
-  }, []);
   const [job, setJob] = useState<Job | null>(null);
   const [busy, setBusy] = useState(false);
   const [globalError, setGlobalError] = useState("");
-  const pathParts = pathname.split("/").filter(Boolean);
-  const pathStep = pathParts[2] as StepSlug | undefined;
-  const currentIndex = Math.max(0, steps.findIndex((step) => step.slug === pathStep));
-  const maxStep = allowedStep(job);
+  const [addingFiles, setAddingFiles] = useState(false);
 
-  useEffect(() => {
-    const onPopState = () => setPathname(readHashPath());
-    window.addEventListener("popstate", onPopState);
-    window.addEventListener("hashchange", onPopState);
-    return () => {
-      window.removeEventListener("popstate", onPopState);
-      window.removeEventListener("hashchange", onPopState);
-    };
+  const [mounted, setMountedRaw] = useState<MountedSurface | null>(null);
+  const [breadcrumb, setBreadcrumb] = useState<MountedSurface | null>(null);
+
+  const [classification, setClassification] = useState<DefectClassification | null>(null);
+  const [classificationError, setClassificationError] = useState("");
+  const [visibleVerdicts, setVisibleVerdicts] = useState<Set<StrutVerdict>>(
+    () => new Set(VERDICT_ORDER.filter((verdict) => verdict !== "present")),
+  );
+  const [selectedStrutIds, setSelectedStrutIds] = useState<Set<number>>(new Set());
+
+  const [chatTurns, setChatTurns] = useState<ChatTurn[]>([]);
+  const [chatBusy, setChatBusy] = useState(false);
+  const [statusEvents, setStatusEvents] = useState<{ id: string; text: string; at: number }[]>([]);
+
+  const mountSurface = useCallback((next: MountedSurface | null) => {
+    setMountedRaw((current) => {
+      if (current && next && current.component !== next.component) {
+        // Replacing one surface with a different one -- remember what was there.
+        setBreadcrumb(current);
+      } else if (!next) {
+        // Explicit close: nothing to "go back to" from the file list, and an
+        // old breadcrumb here would misleadingly point at whatever was open
+        // before this close, even after the user picks something unrelated.
+        setBreadcrumb(null);
+      }
+      return next;
+    });
+    if (next?.component === "DefectView") {
+      if (next.props.filter_verdicts) setVisibleVerdicts(new Set(next.props.filter_verdicts));
+      if (next.props.select_strut_ids) setSelectedStrutIds(new Set(next.props.select_strut_ids));
+    }
   }, []);
 
-  // DEV MODE: "resume last job on reload" is temporarily disabled so every page
-  // load starts fresh. This block also purges any job id left over in
-  // localStorage from before this was disabled. To restore persistence, delete
-  // this effect and uncomment the block below it.
   useEffect(() => {
     localStorage.removeItem("lattice-job");
   }, []);
 
-  // useEffect(() => {
-  //   const id = pathParts[0] === "jobs" ? pathParts[1] : localStorage.getItem("lattice-job");
-  //   if (!id) return;
-  //   api.getJob(id)
-  //     .then((loaded) => {
-  //       setJob(loaded);
-  //       localStorage.setItem("lattice-job", loaded.id);
-  //       if (pathParts[0] !== "jobs") navigate(`/jobs/${loaded.id}/${steps[allowedStep(loaded)].slug}`, { replace: true });
-  //     })
-  //     .catch(() => {
-  //       localStorage.removeItem("lattice-job");
-  //       if (pathParts[0] === "jobs") navigate("/", { replace: true });
-  //     });
-  //   // Route identity is intentionally the refresh trigger.
-  //   // eslint-disable-next-line react-hooks/exhaustive-deps
-  // }, [pathParts[1]]);
-
   useEffect(() => {
     if (!job || job.state !== "analyzing") return;
     const timer = window.setInterval(async () => {
-      const updated = await api.getJob(job.id);
-      setJob(updated);
-      if (updated.state === "complete") navigate(`/jobs/${updated.id}/analysis`);
+      setJob(await api.getJob(job.id));
     }, 1200);
     return () => window.clearInterval(timer);
-  }, [job, navigate]);
+  }, [job]);
 
   useEffect(() => {
     const tiltPending = job?.files.some(
@@ -592,13 +614,49 @@ export default function App() {
     return () => window.clearInterval(timer);
   }, [job]);
 
+  // Real, honest "streaming" status: every polled state/stage change becomes
+  // a narration line in the chat timeline. Not attributed to the model --
+  // it's a direct reflection of observed backend state, visually distinct
+  // (see .status-event), never a fabricated commentary.
+  const prevProgressRef = useRef<{ state: string; stage: string | null | undefined } | null>(null);
   useEffect(() => {
-    if (job && currentIndex > allowedStep(job)) {
-      navigate(`/jobs/${job.id}/${steps[allowedStep(job)].slug}`, { replace: true });
+    if (!job) return;
+    const stage = job.defects?.stage;
+    const prev = prevProgressRef.current;
+    const lines: string[] = [];
+    if (prev) {
+      if (job.state !== prev.state) {
+        if (job.state === "analyzing") lines.push("Analysis started…");
+        else if (job.state === "complete") lines.push("Analysis complete.");
+        else if (job.state === "failed") lines.push(`Analysis failed${job.error ? `: ${job.error}` : "."}`);
+      }
+      if (stage && stage !== prev.stage) lines.push(`${DEFECT_STAGE_LABELS[stage]}…`);
     }
-  }, [currentIndex, job, navigate]);
+    if (lines.length) {
+      setStatusEvents((current) => [
+        ...current,
+        ...lines.map((text, index) => ({ id: `${Date.now()}-${index}`, text, at: Date.now() + index })),
+      ]);
+    }
+    prevProgressRef.current = { state: job.state, stage };
+  }, [job]);
 
-  const currentStep = useMemo(() => steps[currentIndex] || steps[0], [currentIndex]);
+  useEffect(() => {
+    if (!job?.defects || job.defects.status !== "complete" || !job.defects.dataUrl) {
+      setClassification(null);
+      return;
+    }
+    setClassificationError("");
+    setClassification(null);
+    fetch(job.defects.dataUrl)
+      .then((response) => {
+        if (!response.ok) throw new Error(`Request failed (${response.status})`);
+        return response.json();
+      })
+      .then(setClassification)
+      .catch(() => setClassificationError("The defect classification could not be loaded."));
+  }, [job?.defects?.dataUrl]);
+
   const upload = async (files: File[]) => {
     if (!files.length) return;
     setBusy(true);
@@ -607,14 +665,13 @@ export default function App() {
       const created = await api.createJob();
       const uploaded = await api.upload(created.id, files);
       setJob(uploaded);
-      // localStorage.setItem("lattice-job", uploaded.id); // DEV MODE: see note above
-      navigate(`/jobs/${uploaded.id}/inspect`);
     } catch (error) {
       setGlobalError(error instanceof Error ? error.message : "Upload failed");
     } finally {
       setBusy(false);
     }
   };
+
   const analyze = async () => {
     if (!job) return;
     setGlobalError("");
@@ -624,7 +681,7 @@ export default function App() {
       setGlobalError(error instanceof Error ? error.message : "Analysis could not start");
     }
   };
-  const [addingFiles, setAddingFiles] = useState(false);
+
   const addFiles = async (files: File[]) => {
     if (!job || !files.length) return;
     setGlobalError("");
@@ -637,63 +694,136 @@ export default function App() {
       setAddingFiles(false);
     }
   };
+
   const reset = () => {
     localStorage.removeItem("lattice-job");
     setJob(null);
-    navigate("/");
+    setChatTurns([]);
+    setStatusEvents([]);
+    setClassification(null);
+    setSelectedStrutIds(new Set());
+    mountSurface(null);
+    setBreadcrumb(null);
   };
-  const move = (index: number) => {
-    if (!job || index > maxStep) return;
-    navigate(`/jobs/${job.id}/${steps[index].slug}`);
+
+  const previewFile = (file: InputFile) => {
+    if (file.kind === "stl") mountSurface({ component: "ModelViewer", props: { file_id: file.id } });
+    else mountSurface({ component: "DataViz", props: { file_id: file.id } });
   };
+
+  const sendChat = async (message: string) => {
+    if (!job) return;
+    setChatBusy(true);
+    setGlobalError("");
+    try {
+      const turn = await api.sendChat(job.id, message);
+      setChatTurns((current) => [...current, turn]);
+      const refreshed = await api.getJob(job.id);
+      setJob(refreshed);
+      if ("mount" in turn) mountSurface(turn.mount ?? null);
+    } catch (error) {
+      setGlobalError(error instanceof Error ? error.message : "The chat request failed");
+    } finally {
+      setChatBusy(false);
+    }
+  };
+
+  const toggleVerdict = (verdict: StrutVerdict) => {
+    setVisibleVerdicts((current) => {
+      const next = new Set(current);
+      if (next.has(verdict)) next.delete(verdict);
+      else next.add(verdict);
+      return next;
+    });
+  };
+
+  const timeline = useMemo<TimelineEntry[]>(() => {
+    const entries: TimelineEntry[] = [
+      ...chatTurns.map((turn) => ({ kind: "turn" as const, at: new Date(turn.timestamp).getTime(), turn })),
+      ...statusEvents.map((event) => ({ kind: "status" as const, at: event.at, id: event.id, text: event.text })),
+    ];
+    return entries.sort((a, b) => a.at - b.at);
+  }, [chatTurns, statusEvents]);
+
+  const mountedFile = mounted?.props.file_id ? job?.files.find((f) => f.id === mounted.props.file_id) : undefined;
+  const mountedArtifact = mounted?.props.artifact_id
+    ? job?.artifacts.find((a) => a.id === mounted.props.artifact_id)
+    : undefined;
+
+  const chatDisabled = !job;
+  const chatDisabledReason = "Upload a scan to get started";
 
   return (
     <div className="app-shell">
       <header className="topbar">
         <button className="brand" onClick={reset} aria-label="Lattice Lens home">
-          <span className="brand-mark"><span /><span /><span /><span /></span>
-          <span><strong>Lattice</strong> Lens</span>
+          <span className="brand-mark">
+            <span />
+            <span />
+            <span />
+            <span />
+          </span>
+          <span>
+            <strong>Lattice</strong> Lens
+          </span>
         </button>
-        <div className="status-chip"><span /> Agent workflow ready</div>
+        <div className="status-chip">
+          <span /> {job ? `Job ${job.id.slice(0, 8)} · ${job.state}` : "No inspection loaded"}
+        </div>
       </header>
-      <nav className="stepper" aria-label="Workflow progress">
-        {steps.map((step, index) => {
-          const available = index <= maxStep;
-          const complete = index < maxStep;
-          return (
-            <button
-              key={step.slug}
-              disabled={!available || !job}
-              className={`${index === currentIndex ? "current" : ""} ${complete ? "complete" : ""}`}
-              onClick={() => move(index)}
-              title={!available ? `Available after ${steps[index - 1].label.toLowerCase()}` : ""}
-            >
-              <span className="step-number">{complete ? <Check size={15} /> : index + 1}</span>
-              <span><strong>{step.label}</strong><small>{step.note}</small></span>
-              {index < steps.length - 1 && <i />}
-            </button>
-          );
-        })}
-      </nav>
-      <main>
-        {globalError && <div className="global-error"><span>{globalError}</span><button onClick={() => setGlobalError("")}><X size={16} /></button></div>}
-        {currentStep.slug === "upload" && <UploadPage onComplete={upload} busy={busy} />}
-        {currentStep.slug === "inspect" && job && (
-          <InspectPage job={job} onAnalyze={analyze} onAddFiles={addFiles} addingFiles={addingFiles} />
-        )}
-        {currentStep.slug === "analysis" && job && <AnalysisPage job={job} />}
-        {currentStep.slug === "report" && job && <ReportPage job={job} onReset={reset} />}
-      </main>
-      {job && currentStep.slug !== "upload" && (
-        <footer className="page-controls">
-          <button className="secondary-button" disabled={currentIndex === 0} onClick={() => move(currentIndex - 1)}>
-            <ChevronLeft size={18} /> Back
+
+      {globalError && (
+        <div className="global-error">
+          <span>{globalError}</span>
+          <button onClick={() => setGlobalError("")}>
+            <X size={16} />
           </button>
-          <span>Step {currentIndex + 1} of 4</span>
-          <button className="secondary-button" disabled={currentIndex >= maxStep} onClick={() => move(currentIndex + 1)}>
-            Next <ChevronRight size={18} />
-          </button>
-        </footer>
+        </div>
+      )}
+
+      {!job ? (
+        <main>
+          <UploadScreen onComplete={upload} busy={busy} />
+        </main>
+      ) : (
+        <main className="workbench">
+          <section className="canvas-pane">
+            {mounted && (
+              <div className="surface-bar">
+                {breadcrumb && breadcrumb.component !== mounted.component && (
+                  <button className="text-button" onClick={() => mountSurface(breadcrumb)}>
+                    <ChevronLeft size={14} /> Back to {SURFACE_LABELS[breadcrumb.component]}
+                  </button>
+                )}
+                <span className="surface-label">{SURFACE_LABELS[mounted.component]}</span>
+                <button className="icon-button" onClick={() => mountSurface(null)} aria-label="Close">
+                  <X size={16} />
+                </button>
+              </div>
+            )}
+            {job.error && <div className="error-banner">{job.error}</div>}
+            <div className="canvas-body">
+              {!mounted && (
+                <FileListSurface job={job} onPreview={previewFile} onAnalyze={analyze} onAddFiles={addFiles} addingFiles={addingFiles} />
+              )}
+              {mounted?.component === "ModelViewer" && <ModelSurface file={mountedFile} artifact={mountedArtifact} />}
+              {mounted?.component === "DataViz" && <DataVizSurface file={mountedFile} artifact={mountedArtifact} />}
+              {mounted?.component === "DefectView" && (
+                <DefectSurface
+                  job={job}
+                  classification={classification}
+                  loadError={classificationError}
+                  visible={visibleVerdicts}
+                  onToggle={toggleVerdict}
+                  selectedStrutIds={selectedStrutIds}
+                  onSelectStrut={(id) => setSelectedStrutIds(new Set([id]))}
+                />
+              )}
+              {mounted?.component === "ReportView" && <ReportSurface job={job} />}
+            </div>
+          </section>
+          <ChatPanel timeline={timeline} onSend={sendChat} busy={chatBusy} disabled={chatDisabled} disabledReason={chatDisabledReason} />
+        </main>
       )}
     </div>
   );

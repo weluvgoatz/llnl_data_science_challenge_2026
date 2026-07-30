@@ -1,4 +1,4 @@
-import type { Job } from "./types";
+import type { ChatTurn, Job } from "./types";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 
@@ -37,7 +37,7 @@ function normalizeJob(job: Job): Job {
   };
 }
 
-async function request<T>(url: string, options?: RequestInit): Promise<T> {
+async function request<T>(url: string, options?: RequestInit, normalize = false): Promise<T> {
   if (!API_BASE && import.meta.env.PROD) {
     throw new Error(
       "This deployment has no backend API configured. Set the VITE_API_BASE_URL GitHub Actions variable.",
@@ -55,17 +55,24 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
     throw new Error(message);
   }
   const payload = await response.json();
-  return (url.startsWith("/api/jobs") ? normalizeJob(payload as Job) : payload) as T;
+  return (normalize ? normalizeJob(payload as Job) : payload) as T;
 }
 
 export const api = {
-  createJob: () => request<Job>("/api/jobs", { method: "POST" }),
-  getJob: (id: string) => request<Job>(`/api/jobs/${id}`),
+  createJob: () => request<Job>("/api/jobs", { method: "POST" }, true),
+  getJob: (id: string) => request<Job>(`/api/jobs/${id}`, undefined, true),
   upload: async (id: string, files: File[]) => {
     const body = new FormData();
     files.forEach((file) => body.append("files", file));
-    return request<Job>(`/api/jobs/${id}/files`, { method: "POST", body });
+    return request<Job>(`/api/jobs/${id}/files`, { method: "POST", body }, true);
   },
   analyze: (id: string) =>
-    request<Job>(`/api/jobs/${id}/analysis`, { method: "POST" }),
+    request<Job>(`/api/jobs/${id}/analysis`, { method: "POST" }, true),
+  sendChat: (id: string, message: string) =>
+    request<ChatTurn>(`/api/jobs/${id}/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message }),
+    }),
+  getChatHistory: (id: string) => request<{ turns: ChatTurn[] }>(`/api/jobs/${id}/chat`),
 };

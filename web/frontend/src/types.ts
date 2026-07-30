@@ -50,19 +50,57 @@ export type DefectStage =
   | "bend_detail"
   | "complete";
 
+export interface DefectVersion {
+  id: number;
+  label: string;
+  path: string;
+  params: Record<string, number>;
+  counts: Partial<Record<StrutVerdict, number>>;
+  n: number;
+  createdAt: string;
+}
+
 export interface DefectsInfo {
   status: "running" | "complete" | "failed";
   stage?: DefectStage | null;
   error?: string | null;
   dataUrl?: string | null;
+  versions?: DefectVersion[];
+  activeVersionId?: number;
 }
 
 export type StrutVerdict = "present" | "missing" | "bent" | "thin" | "disconnected";
 
+export interface StrutEvidence {
+  reason: "as_built_edge_matched" | "material_sample_between_anchors" | "no_metal_at_anchor";
+  junction_a_anchor?: string;
+  junction_b_anchor?: string;
+  junction_a_snap_dist_vox?: number | null;
+  junction_b_snap_dist_vox?: number | null;
+  bow_um?: number;
+  bow_threshold_um?: number;
+  mean_density?: number;
+  density_cutoff?: number;
+  density_median?: number;
+  density_mad_scaled?: number;
+  outlier_k?: number;
+  measured_radius_um?: number | null;
+  nominal_radius_um?: number;
+  metal_fraction?: number;
+  missing_fraction_threshold?: number;
+  longest_gap_fraction?: number;
+  gap_fraction_threshold?: number;
+  as_built_node_a?: number;
+  as_built_node_b?: number;
+}
+
 export interface Strut {
+  id: number;
   p0: [number, number, number];
   p1: [number, number, number];
   verdict: StrutVerdict;
+  design_thickness?: number | null;
+  evidence?: StrutEvidence;
 }
 
 export interface DefectClassification {
@@ -73,6 +111,60 @@ export interface DefectClassification {
     volume_shape_zyx: [number, number, number];
   };
 }
+
+export interface ToolCall {
+  tool: string;
+  input: Record<string, unknown>;
+  output: unknown;
+  is_error: boolean;
+}
+
+export interface SubagentTrace {
+  request: string;
+  final_text: string;
+  tool_calls: ToolCall[];
+  stop_reason: string;
+}
+
+export type SurfaceComponent = "ModelViewer" | "DefectView" | "ReportView" | "DataViz";
+
+export interface SurfaceProps {
+  file_id?: string;
+  artifact_id?: string;
+  version_id?: number;
+  filter_verdicts?: StrutVerdict[];
+  select_strut_ids?: number[];
+  slice_index?: number;
+}
+
+export interface MountedSurface {
+  component: SurfaceComponent;
+  props: SurfaceProps;
+}
+
+export interface ChatTurn {
+  timestamp: string;
+  user_message: string;
+  reply: string;
+  orchestrator_tool_calls: ToolCall[];
+  subagent_traces: Record<string, SubagentTrace[]>;
+  // Key ABSENT (undefined) = the agent didn't touch the surface this turn,
+  // leave whatever's mounted alone. Key present with value null = an
+  // explicit unmount_surface call, clear back to the file list. Key present
+  // with a MountedSurface = mount that. Collapsing "absent" and "null" to
+  // the same thing would make a plain Q&A turn indistinguishable from "hide
+  // what you're looking at" -- keep them distinct end to end.
+  mount?: MountedSurface | null;
+}
+
+// A chat-pane timeline entry: either a real backend chat turn, or a
+// frontend-only status narration line (e.g. "skeletonizing the lattice…")
+// derived from real polled job state -- never attributed to the model, kept
+// visually distinct, so "what the agent said" and "what we observed happen"
+// are never confused with each other.
+export type TimelineEntry =
+  | { kind: "turn"; at: number; turn: ChatTurn }
+  | { kind: "status"; at: number; id: string; text: string };
 
 export interface Job {
   id: string;

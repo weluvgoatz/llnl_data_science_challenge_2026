@@ -6,6 +6,7 @@ import shlex
 import struct
 import subprocess
 import sys
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -30,7 +31,7 @@ if str(_ANALYSIS_ROOT) not in sys.path:
 
 from analysis.tiff_tilt import _forward_rotation_matrix, estimate_tilt  # noqa: E402
 
-from .store import job_dir, load_job, save_job
+from .store import job_dir, load_job, update_job
 
 
 def inspect_upload(path: Path) -> dict[str, Any]:
@@ -154,33 +155,46 @@ def _rotate_grayscale_tiff(
 
 
 def check_and_correct_tilt(job_id: str, file_id: str) -> None:
+    # Every mutation below goes through update_job (atomic load+mutate+save
+    # under one lock) instead of separate load_job()/save_job() calls --
+    # this runs as a background thread that can overlap with the analysis
+    # pipeline's own background thread touching the same job.json, and a
+    # stale full-dict save from whichever thread finishes last would
+    # silently discard the other's fields (this is exactly how "analyzing"
+    # was observed reverting to "intake_ready" moments after starting).
     job = load_job(job_id)
     item = next((entry for entry in job["files"] if entry["id"] == file_id), None)
     if not item or item["kind"] != "tiff":
         return
     root = job_dir(job_id)
     source = root / item["path"]
-    item["tiltStatus"] = "checking"
-    item["tiltError"] = None
-    save_job(job)
+
+    def mark_checking(current: dict[str, Any]) -> None:
+        current_item = next(entry for entry in current["files"] if entry["id"] == file_id)
+        current_item["tiltStatus"] = "checking"
+        current_item["tiltError"] = None
+
+    update_job(job_id, mark_checking)
 
     try:
         binary_path = root / "tilt" / f"{file_id}-binary.tif"
         _binarize_tiff(source, binary_path)
         estimate = estimate_tilt(binary_path)
         binary_path.unlink(missing_ok=True)
-
-        job = load_job(job_id)
-        item = next(entry for entry in job["files"] if entry["id"] == file_id)
-        item["tiltZY"] = estimate.zy.angle_degrees
-        item["tiltZX"] = estimate.zx.angle_degrees
-
-        if (
+        not_tilted = (
             abs(estimate.zy.angle_degrees) <= TILT_THRESHOLD_DEGREES
             and abs(estimate.zx.angle_degrees) <= TILT_THRESHOLD_DEGREES
-        ):
-            item["tiltStatus"] = "not_tilted"
-            save_job(job)
+        )
+
+        def apply_estimate(current: dict[str, Any]) -> None:
+            current_item = next(entry for entry in current["files"] if entry["id"] == file_id)
+            current_item["tiltZY"] = estimate.zy.angle_degrees
+            current_item["tiltZX"] = estimate.zx.angle_degrees
+            if not_tilted:
+                current_item["tiltStatus"] = "not_tilted"
+
+        update_job(job_id, apply_estimate)
+        if not_tilted:
             return
 
         corrected_relative = f"tilt/{file_id}-corrected.tif"
@@ -190,15 +204,21 @@ def check_and_correct_tilt(job_id: str, file_id: str) -> None:
             estimate.zy.angle_degrees,
             estimate.zx.angle_degrees,
         )
-        item["correctedPath"] = corrected_relative
-        item["tiltStatus"] = "corrected"
-        save_job(job)
+
+        def apply_corrected(current: dict[str, Any]) -> None:
+            current_item = next(entry for entry in current["files"] if entry["id"] == file_id)
+            current_item["correctedPath"] = corrected_relative
+            current_item["tiltStatus"] = "corrected"
+
+        update_job(job_id, apply_corrected)
     except Exception as exc:
-        job = load_job(job_id)
-        item = next(entry for entry in job["files"] if entry["id"] == file_id)
-        item["tiltStatus"] = "failed"
-        item["tiltError"] = str(exc)
-        save_job(job)
+
+        def apply_failure(current: dict[str, Any]) -> None:
+            current_item = next(entry for entry in current["files"] if entry["id"] == file_id)
+            current_item["tiltStatus"] = "failed"
+            current_item["tiltError"] = str(exc)
+
+        update_job(job_id, apply_failure)
 
 
 def _run_external_harness(root: Path) -> bool:
@@ -294,13 +314,35 @@ def _run_builtin(root: Path, job: dict[str, Any]) -> None:
     report_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def start_analysis(job_id: str) -> dict[str, Any]:
+    """Validate + flip a job into 'analyzing' and start run_analysis on a
+    background thread, returning immediately. Shared by the HTTP endpoint
+    and the chat-callable run_initial_analysis tool, so both trigger the
+    exact same backgrounded, never-blocking path. Raises ValueError (not an
+    HTTP-specific exception) if the job isn't in a startable state -- each
+    caller translates that to its own error type. The state check + flip
+    happens atomically inside update_job so two near-simultaneous triggers
+    (e.g. a double chat request) can't both pass the check.
+    """
+
+    def begin(current: dict[str, Any]) -> None:
+        if current["state"] not in {"intake_ready", "failed"}:
+            raise ValueError(f"Analysis is unavailable in state {current['state']!r} (needs intake_ready or failed)")
+        current["state"] = "analyzing"
+        current["error"] = None
+
+    job = update_job(job_id, begin)
+    threading.Thread(target=run_analysis, args=(job_id,), daemon=True).start()
+    return job
+
+
 def run_analysis(job_id: str) -> None:
+    # Only ever invoked as start_analysis's background-thread target, which
+    # has already validated the job and atomically set state="analyzing" --
+    # no redundant state check/save here. (A redundant save here used to
+    # race with other background threads touching the same job.json, e.g. a
+    # tilt check still finishing from upload, silently reverting state.)
     job = load_job(job_id)
-    if job["state"] not in {"intake_ready", "analyzing", "failed"}:
-        return
-    job["state"] = "analyzing"
-    job["error"] = None
-    save_job(job)
     root = job_dir(job_id)
     try:
         external = _run_external_harness(root)
@@ -321,13 +363,17 @@ def run_analysis(job_id: str) -> None:
                 str((root / design_item["path"]).resolve()),
             )
 
-        job = load_job(job_id)
-        job["artifacts"] = artifacts
-        job["report"] = report
-        job["state"] = "complete"
-        save_job(job)
+        def finish(current: dict[str, Any]) -> None:
+            current["artifacts"] = artifacts
+            current["report"] = report
+            current["state"] = "complete"
+
+        update_job(job_id, finish)
     except Exception as exc:
-        job = load_job(job_id)
-        job["state"] = "failed"
-        job["error"] = str(exc)
-        save_job(job)
+        message = str(exc)
+
+        def fail(current: dict[str, Any]) -> None:
+            current["state"] = "failed"
+            current["error"] = message
+
+        update_job(job_id, fail)

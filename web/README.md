@@ -92,6 +92,38 @@ The complete Codex event log is retained as `codex.log` inside the job directory
 Use the narrowest sandbox that permits the configured MCP workflow. Do not use a
 sandbox bypass for uploaded or otherwise untrusted data.
 
+## Chat: detection_agent / report_agent / plot_agent
+
+Once a job's initial analysis has completed, the workbench's chat panel is
+backed by an orchestrator (`app/agents/orchestrator.py`) that delegates to
+three subagents, each a scoped tool-calling loop against real pipeline
+output -- no subagent invents a number, every tool result traces back to a
+real classification JSON, design JSON, or rendered artifact:
+
+- **detection_agent** -- re-runs classification with modified thresholds
+  (versioned, never overwrites a prior run), generates the per-defect
+  validation gallery, exports 3D models.
+- **report_agent** -- reads per-strut evidence, defect hotspots by unit
+  cell, and measured-vs-nominal thickness to explain findings.
+- **plot_agent** -- renders the chart that actually answers the question
+  (verdict counts, hotspots, thickness distribution, version comparison).
+
+This requires an OpenAI API key with function-calling access:
+
+```bash
+export OPENAI_API_KEY=sk-...
+# optional, defaults to gpt-5.4 (matching .codex/agents/strut_error_detection_agent.toml):
+export OPENAI_MODEL=gpt-5.4
+python -m uvicorn app.main:app --reload
+```
+
+Without it, `POST /api/jobs/{id}/chat` returns `503` -- the rest of the app
+(upload, inspect, run analysis, download the report) works exactly the same
+either way, since the deterministic pipeline never depends on chat. Every
+chat turn's full tool-call trace (per subagent) is persisted to
+`job-data/<job>/chat/audit.jsonl` for audit, alongside the resumable
+conversation in `chat/messages.json`.
+
 ## Test and build
 
 ```bash
