@@ -38,12 +38,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import detect_v2 as D  # noqa: E402
 
 OUT = Path(__file__).resolve().parent / "model3d"
-NSIDE = 8                      # radial segments per tube
+NSIDE = 14                     # radial segments per tube (was 8 - visibly faceted)
 MAX_R_MULT = 1.25              # radius cap, x nominal strut radius
 MIN_R = 0.6                    # never render a degenerate sliver
 
-# axial sample counts by verdict: enough to show the defect, no more
-K_BY = {"present": 8, "missing": 2, "thin": 14, "disconnected": 18, "bent": 20}
+# Axial samples by verdict.  The polygon budget goes to the defects: a healthy
+# strut is straight, so more samples along it buy nothing, while a bent one needs
+# them to render its curve smoothly and a necked one to render its pinch.
+K_BY = {"present": 6, "missing": 2, "thin": 22, "disconnected": 26, "bent": 30}
 
 RGB = {
     "present": (110, 170, 255),      # blue

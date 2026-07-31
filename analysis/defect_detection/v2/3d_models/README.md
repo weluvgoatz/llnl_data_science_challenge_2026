@@ -10,10 +10,28 @@ actually curve, thin struts actually are thin, severed struts actually are split
 
 | file | size | contains | use it for |
 |---|---|---|---|
-| `lattice_3d_ALL_struts_color_coded.ply` | 53 MB | all **18,468** struts | the full picture — MeshLab / desktop |
-| `lattice_3d_DEFECTS_ONLY_color_coded.ply` | 9 MB | only the **1,822** defective struts | web viewers, quick loading, presentations |
+| `lattice_3d_ALL_struts_color_coded.ply` | 80 MB | all **18,468** struts | the full picture — MeshLab / desktop / web on request |
+| `lattice_3d_DEFECTS_ONLY_color_coded.ply` | 22 MB | only the **1,822** defective struts | fast loading, presentations, default web view |
 
 `COLOR_KEY.png` is the legend.
+
+Tubes are **14-sided**, so they read as round rather than faceted when you zoom in.
+The polygon budget is spent on the defects rather than spread evenly: a healthy
+strut is straight and gains nothing from extra samples along it, while a bent one
+needs them to render its curve and a necked one to render its pinch.
+
+| | axial samples | vertices |
+|---|---:|---:|
+| present | 6 | 1,430,582 |
+| disconnected | 26 | 258,088 |
+| thin | 22 | 167,378 |
+| bent | 30 | 100,500 |
+| missing | 2 | 11,490 |
+
+**Serving this on the web:** 80 MB is heavy for a browser. Load
+`DEFECTS_ONLY` (22 MB) by default and fetch the full model only when the user
+asks to see the whole lattice. If it still needs to be lighter, converting to
+glTF with Draco compression typically cuts a mesh like this by 5-10x.
 
 ## How to open them
 
