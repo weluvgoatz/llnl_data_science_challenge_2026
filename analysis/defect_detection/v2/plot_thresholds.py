@@ -20,6 +20,15 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+# presentation-scale type: these figures are read from a slide, not a page
+plt.rcParams.update({
+    "font.size": 15,
+    "axes.titlesize": 19,
+    "axes.labelsize": 16,
+    "xtick.labelsize": 14,
+    "ytick.labelsize": 14,
+})
+
 V2 = Path(__file__).resolve().parent
 sys.path.insert(0, str(V2))
 from detect_v2 import OUT_JSON, UM, NOM_D  # noqa: E402
@@ -66,18 +75,18 @@ def thin_panel(ax, S, thr):
     n_flag = int((v < cut).sum())
     ax.set_yscale("log")
     ax.set_xlim(0, hi)
-    ax.set_xlabel("thinnest sustained section along the strut  (um)", fontsize=10)
-    ax.set_ylabel("struts  (log scale)", fontsize=10)
+    ax.set_xlabel("thinnest sustained section along the strut  (um)", fontsize=17)
+    ax.set_ylabel("struts  (log scale)", fontsize=17)
     ax.set_title("THIN — the threshold is derived from this scan's own struts",
-                 fontsize=12.5, fontweight="bold", color="#a88600")
+                 fontsize=20, fontweight="bold", color="#a88600")
     ax.annotate(f"THIN  <  {cut:.0f} um\n= median - 3 x MAD\n{n_flag:,} struts flagged",
                 xy=(cut, 3), xytext=(0.055, 0.60), textcoords="axes fraction",
-                fontsize=10, fontweight="bold", color="#8a6f00",
-                arrowprops=dict(arrowstyle="->", color="#8a6f00", lw=1.5))
+                fontsize=16, fontweight="bold", color="#8a6f00",
+                arrowprops=dict(arrowstyle="->", color="#8a6f00", lw=2.0))
     ax.annotate(f"healthy median\n{med:.0f} um   (MAD {mad:.0f})",
                 xy=(med, 1600), xytext=(0.44, 0.80), textcoords="axes fraction",
-                fontsize=10, fontweight="bold", color="#1f4e9c",
-                arrowprops=dict(arrowstyle="->", color="#1f4e9c", lw=1.5))
+                fontsize=16, fontweight="bold", color="#1f4e9c",
+                arrowprops=dict(arrowstyle="->", color="#1f4e9c", lw=2.0))
     ax.text(0.985, 0.96,
             f"dotted lines: -1 and -2 MAD\n"
             f"3 MAD is deliberately conservative\n\n"
@@ -87,7 +96,7 @@ def thin_panel(ax, S, thr):
             f"from the scan instead of taken from spec"
             + (f"\n\n{n_clip} struts beyond {hi:.0f} um not shown\n"
                f"(inside the fused end-caps)" if n_clip else ""),
-            transform=ax.transAxes, ha="right", va="top", fontsize=8.6,
+            transform=ax.transAxes, ha="right", va="top", fontsize=13,
             bbox=dict(fc="white", ec="#bbb", lw=0.8, pad=0.55))
     style(ax)
     return med, mad, cut, n_flag
@@ -117,18 +126,18 @@ def bent_panel(ax, S, thr):
     ax.set_yscale("log")
     ax.set_xlim(0, hi)
     ax.set_xlabel("sustained bow of the strut's centreline off its own chord  (um)",
-                  fontsize=10)
-    ax.set_ylabel("struts  (log scale)", fontsize=10)
+                  fontsize=17)
+    ax.set_ylabel("struts  (log scale)", fontsize=17)
     ax.set_title("BENT — the threshold is a physical scale, one strut radius",
-                 fontsize=12.5, fontweight="bold", color="#a0208c")
+                 fontsize=20, fontweight="bold", color="#a0208c")
     ax.annotate(f"BENT  >  {cut:.0f} um\n= one strut radius\n{n_flag:,} struts flagged",
                 xy=(cut, 40), xytext=(0.46, 0.62), textcoords="axes fraction",
-                fontsize=10, fontweight="bold", color="#8c1a7c",
-                arrowprops=dict(arrowstyle="->", color="#8c1a7c", lw=1.5))
+                fontsize=16, fontweight="bold", color="#8c1a7c",
+                arrowprops=dict(arrowstyle="->", color="#8c1a7c", lw=2.0))
     ax.annotate(f"healthy struts\npeak at {pm:.0f} um",
                 xy=(pm, 1500), xytext=(0.22, 0.83), textcoords="axes fraction",
-                fontsize=10, fontweight="bold", color="#1f4e9c",
-                arrowprops=dict(arrowstyle="->", color="#1f4e9c", lw=1.5))
+                fontsize=16, fontweight="bold", color="#1f4e9c",
+                arrowprops=dict(arrowstyle="->", color="#1f4e9c", lw=2.0))
     ax.text(0.985, 0.96,
             "why one radius: bowed by more than its own\n"
             "radius, the strut no longer overlaps the straight\n"
@@ -138,7 +147,7 @@ def bent_panel(ax, S, thr):
             "edge of the main population"
             + (f"\n\n{n_clip} struts beyond {hi:.0f} um not shown"
                if n_clip else ""),
-            transform=ax.transAxes, ha="right", va="top", fontsize=8.6,
+            transform=ax.transAxes, ha="right", va="top", fontsize=13,
             bbox=dict(fc="white", ec="#bbb", lw=0.8, pad=0.55))
     style(ax)
     return pm, cut, n_flag
@@ -149,19 +158,19 @@ def main():
     d = json.load(open(OUT_JSON))
     S, thr = d["struts"], d["meta"]["thresholds"]
 
-    fig, axes = plt.subplots(2, 1, figsize=(11.5, 11), facecolor="white")
+    fig, axes = plt.subplots(2, 1, figsize=(14, 13.5), facecolor="white")
     med, mad, tcut, tn = thin_panel(axes[0], S, thr)
     pm, bcut, bn = bent_panel(axes[1], S, thr)
     fig.suptitle("Where the thresholds sit in the measured population\n"
                  "neither cuts through the bulk — a strut must be a genuine "
                  "outlier to be flagged",
-                 fontsize=14, fontweight="bold", y=0.985)
+                 fontsize=21, fontweight="bold", y=0.985)
     fig.tight_layout(rect=[0, 0, 1, 0.955])
     fig.savefig(OUT / "threshold_justification.png", dpi=145,
                 bbox_inches="tight", facecolor="white")
 
     for name, fn, col in (("thin", thin_panel, None), ("bent", bent_panel, None)):
-        f, a = plt.subplots(figsize=(11, 5.6), facecolor="white")
+        f, a = plt.subplots(figsize=(14, 7.2), facecolor="white")
         fn(a, S, thr)
         f.tight_layout()
         f.savefig(OUT / f"threshold_{name}.png", dpi=145,
