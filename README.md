@@ -258,6 +258,20 @@ to `detection_agent` / `report_agent` / `plot_agent` respectively — see
 [`web/backend/app/agents/subagents.py`](web/backend/app/agents/subagents.py) for
 each one's exact tool roster and system prompt.
 
+Two things worth knowing before you type your first message:
+
+- **Ask it what it can do.** The chat panel isn't only for issuing
+  commands — you can ask it plainly, e.g. *"what can you help me with?"* or
+  *"what does this tool do?"*, and the orchestrator will describe its own
+  capabilities (the three subagents above) grounded in its actual system
+  prompt, not a guess.
+- **Use it to pull findings out of a completed analysis, not just to
+  trigger actions.** Once analysis has finished, the chat panel is the
+  fastest way to actually read the result — ask it to explain a specific
+  strut's verdict, summarize the overall defect rate, or (once you have a
+  job to try it on) *"show me the 3D model of the defects"* to get the
+  colour-coded defect view up rather than digging through the UI by hand.
+
 ### 3.5 Run the detector standalone (no web app at all)
 
 If you just want the classification JSON for a scan, without the API/UI:

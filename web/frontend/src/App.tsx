@@ -561,7 +561,7 @@ export default function App() {
     if (prev && prev.state !== "complete" && job.state === "complete") {
       let text: string;
       if (job.defects?.status === "complete") {
-        text = 'Analysis complete — you can now ask about defects, e.g. "where are the defects concentrated?"';
+        text = 'Analysis complete — you can now ask about defects, e.g. "show me the 3D model of the defects"';
       } else if (job.defects?.status === "failed") {
         text = `Analysis complete, but defect detection failed${
           job.defects.error ? `: ${job.defects.error}` : "."
