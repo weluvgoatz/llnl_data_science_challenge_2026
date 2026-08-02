@@ -186,6 +186,13 @@ python3 -m venv .venv && source .venv/bin/activate
 ```bash
 cd web/backend
 pip install -r requirements.txt
+
+# Optional, but set it now if you want the chat panel (3.3) -- it has to be
+# set in THIS terminal BEFORE the `uvicorn` command below, since uvicorn
+# only reads it once, at process startup. Everything except the chat panel
+# works fine without it.
+export OPENAI_API_KEY=sk-...
+
 python -m uvicorn app.main:app --reload --port 8000
 ```
 
@@ -193,6 +200,10 @@ Runs from `web/backend` as the working directory. On startup it needs no
 external services except (optionally) the OpenAI API — job data, uploaded
 files, generated plots/reports, and caches all live on local disk under
 `web/job-data/` by default (override with `LATTICE_JOB_ROOT`).
+
+Forgot to set it, or want to add it later? `export OPENAI_API_KEY=sk-...`
+in that terminal, then stop (`Ctrl+C`) and rerun the `uvicorn` command —
+just setting the variable does nothing to an already-running process.
 
 ### 3.2 Frontend
 
@@ -208,22 +219,16 @@ Open **http://localhost:5173** — Vite proxies `/api/*` requests to
 `http://127.0.0.1:8000` (the backend above), configured in
 `web/frontend/vite.config.ts`.
 
-### 3.3 Enabling the chat panel (detection_agent / report_agent / plot_agent)
+### 3.3 The chat panel (detection_agent / report_agent / plot_agent)
 
-Without an API key, the app is still fully usable — upload files, view the
-TIFF/STL/design graph, run analysis (the real `detect_v2.py` pipeline runs
-either way), view the classified 3D lattice, and download the automatic
-per-analysis report. Only the **chat panel** needs an LLM:
-
-```bash
-export OPENAI_API_KEY=sk-...
-# optional, defaults to gpt-5.4:
-export OPENAI_MODEL=gpt-5.4
-```
-
-Set this before starting `uvicorn`. Without it, `POST /api/jobs/{id}/chat`
+This is what `OPENAI_API_KEY`, set in 3.1 above, turns on. Without it, the
+app is still fully usable — upload files, view the TIFF/STL/design graph,
+run analysis (the real `detect_v2.py` pipeline runs either way), view the
+classified 3D lattice, and download the automatic per-analysis report. Only
+the **chat panel** needs the key: without it, `POST /api/jobs/{id}/chat`
 returns `503` and the chat panel is disabled client-side; nothing else is
-affected.
+affected. Optionally also set `OPENAI_MODEL` (defaults to `gpt-5.4`) in the
+same terminal, same place, before starting `uvicorn`.
 
 Once running, asking the chat panel to "run the analysis," "show me the
 defect view," "generate the report," or "plot the defect hotspots" delegates
