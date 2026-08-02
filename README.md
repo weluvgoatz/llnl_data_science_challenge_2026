@@ -57,7 +57,7 @@ GIT_LFS_SKIP_SMUDGE=1 git clone -b agentic-system https://github.com/weluvgoatz/
 This clones cleanly, leaving the files under `data/` as small LFS pointer
 stubs instead of real binaries (`git lfs pull` later, once the quota is
 restored, to fill them in). **You don't need real data under `data/` to run
-the app at all** — it's only sample data for convenience/CLI testing (3.4
+the app at all** — it's only sample data for convenience/CLI testing (3.5
 below); the web app works by uploading your own `.tif`/`.json`/`.stl`
 through the UI.
 
@@ -187,7 +187,7 @@ python3 -m venv .venv && source .venv/bin/activate
 cd web/backend
 pip install -r requirements.txt
 
-# Optional, but set it now if you want the chat panel (3.3) -- it has to be
+# Optional, but set it now if you want the chat panel (3.4) -- it has to be
 # set in THIS terminal BEFORE the `uvicorn` command below, since uvicorn
 # only reads it once, at process startup. Everything except the chat panel
 # works fine without it.
@@ -219,7 +219,29 @@ Open **http://localhost:5173** — Vite proxies `/api/*` requests to
 `http://127.0.0.1:8000` (the backend above), configured in
 `web/frontend/vite.config.ts`.
 
-### 3.3 The chat panel (detection_agent / report_agent / plot_agent)
+### 3.3 Using the app
+
+1. **Upload files** via the "Add a file" button. At minimum, a `.tif`/`.tiff`
+   CT scan. Add the matching registered design `.json` graph too if you want
+   defect classification (without it, you still get scan viewing, tilt
+   checking, and the basic automatic report — just no per-strut verdicts,
+   since `detect_v2.py` needs both the scan and the design to register
+   against). An `.stl` CAD mesh is optional, for the 3D model view. No files
+   of your own? `data/missing_struts/` (`tif_stacks/`, `registered_jsons/`,
+   `stls/`) has a matching set to try.
+2. **Click a file card** to preview it directly — the TIFF slice viewer,
+   STL mesh viewer, or design-graph viewer — no analysis needed for this.
+3. **Click "Run analysis"** (top of the file list) to start the pipeline in
+   the background: a tilt check on the scan, and — if both a TIFF and a
+   design JSON were uploaded — the full `detect_v2.py` run (segment ->
+   skeletonize -> classify). This can take several minutes on a real,
+   ~1 GB scan; the file list shows progress and updates when it's done.
+4. **Explore the result**: once analysis completes, click a file or use the
+   chat panel to view the classified 3D lattice (colour-coded by verdict),
+   charts, or the generated report — see 3.4 below for what the chat panel
+   specifically adds on top of direct clicking.
+
+### 3.4 The chat panel (detection_agent / report_agent / plot_agent)
 
 This is what `OPENAI_API_KEY`, set in 3.1 above, turns on. Without it, the
 app is still fully usable — upload files, view the TIFF/STL/design graph,
@@ -236,7 +258,7 @@ to `detection_agent` / `report_agent` / `plot_agent` respectively — see
 [`web/backend/app/agents/subagents.py`](web/backend/app/agents/subagents.py) for
 each one's exact tool roster and system prompt.
 
-### 3.4 Run the detector standalone (no web app at all)
+### 3.5 Run the detector standalone (no web app at all)
 
 If you just want the classification JSON for a scan, without the API/UI:
 
@@ -268,7 +290,7 @@ for the exact output contract.
 | `OPENAI_MODEL` | `gpt-5.4` | model used by the orchestrator and all three subagents |
 | `LATTICE_JOB_ROOT` | `web/job-data/` | where per-job uploads/results/state are stored |
 | `LATTICE_CORS_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | comma-separated allowed origins; set this when the frontend is hosted separately from the backend (e.g. GitHub Pages) |
-| `LATTICE_BASE`, `LATTICE_STK`, `LATTICE_DESIGN_JSON` | challenge specimen | point the standalone CLI detector (3.4) or the Codex/MCP tools at a different scan |
+| `LATTICE_BASE`, `LATTICE_STK`, `LATTICE_DESIGN_JSON` | challenge specimen | point the standalone CLI detector (3.5) or the Codex/MCP tools at a different scan |
 | `LATTICE_VOXEL_UM`, `LATTICE_STRUT_DIAMETER_UM` | `58.1` / `424.0` | physical calibration, only if your scan's specimen differs |
 | `CODEX_ANALYSIS_COMMAND` | unset | opt-in: route the *automatic per-upload* analysis stage through a Codex CLI invocation instead of the deterministic built-in workflow (see `workflow.py`); unrelated to the chat panel |
 
