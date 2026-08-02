@@ -22,17 +22,54 @@ instructions this repository was built for, see
 
 ## 1. Clone
 
+Clone **directly onto `agentic-system`** (the active development branch —
+`main` is an older, simpler, non-chat version) rather than cloning and then
+switching branches. Git LFS makes branch-switching fragile on this repo
+(see below), and a straight `-b` clone avoids that entirely:
+
 ```bash
-git clone https://github.com/weluvgoatz/llnl_data_science_challenge_2026.git
+git clone -b agentic-system https://github.com/weluvgoatz/llnl_data_science_challenge_2026.git
 cd llnl_data_science_challenge_2026
-git checkout agentic-system   # the active development branch (this app);
-                               # main is an older, simpler, non-chat version
 ```
 
+### Git LFS
+
 `data/` is stored in **Git LFS** (see `.gitattributes`) — install
-[`git-lfs`](https://git-lfs.com/) before cloning, or run `git lfs pull`
-afterward, or the sample CT/design-JSON files under `data/` will be
-pointer stubs instead of real data.
+[`git-lfs`](https://git-lfs.com/) first so it's real data, not pointer
+stubs.
+
+**Known issue, as of this writing: this repo's LFS storage/bandwidth quota
+is exceeded**, which makes any `git clone` or `git checkout` that touches an
+LFS file fail with:
+```
+Smudge error: ... batch response: This repository exceeded its LFS budget.
+The account responsible for the budget should increase it to restore access.
+```
+This is a GitHub billing/quota issue on the repository owner's account —
+increasing the LFS data pack (or reducing what's tracked in LFS) is the
+real fix, and only whoever administers the `weluvgoatz` GitHub account can
+do it. If you hit this and can't wait for that:
+
+```bash
+GIT_LFS_SKIP_SMUDGE=1 git clone -b agentic-system https://github.com/weluvgoatz/llnl_data_science_challenge_2026.git
+```
+
+This clones cleanly, leaving the files under `data/` as small LFS pointer
+stubs instead of real binaries (`git lfs pull` later, once the quota is
+restored, to fill them in). **You don't need real data under `data/` to run
+the app at all** — it's only sample data for convenience/CLI testing (3.4
+below); the web app works by uploading your own `.tif`/`.json`/`.stl`
+through the UI.
+
+If you've already hit the "untracked working tree files would be
+overwritten by checkout" error trying to switch from `main` to
+`agentic-system`: that error is this same LFS failure, just surfacing
+confusingly — a failed LFS smudge mid-checkout leaves the working tree
+half-migrated, so the *next* checkout sees a pile of "untracked" files that
+are really just leftovers from the aborted first one. Don't try to resolve
+the file list by hand; delete the clone and redo it as a single `-b
+agentic-system` clone (with `GIT_LFS_SKIP_SMUDGE=1` if the quota is still
+exceeded) instead.
 
 ---
 
